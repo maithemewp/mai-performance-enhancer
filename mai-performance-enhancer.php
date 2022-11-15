@@ -122,7 +122,7 @@ final class Mai_Performance_Enhancer_Plugin {
 	 * @return  void
 	 */
 	private function includes() {
-		include __DIR__ . 'classes/class-performance-enhancer.php';
+		include __DIR__ . '/classes/class-performance-enhancer.php';
 	}
 
 	/**
