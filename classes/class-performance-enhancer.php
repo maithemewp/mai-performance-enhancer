@@ -344,17 +344,28 @@ class Mai_Performance_Enhancer {
 		static $sources = [];
 
 		foreach ( $scripts as $node ) {
-			$src = $node->getAttribute( 'src' );
+			$type = $node->getAttribute( 'type' );
+			$src  = $node->getAttribute( 'src' );
 
+			if ( $type && 'application/ld+json' === $type ) {
+				continue;
+			}
+
+			// Check sources.
 			if ( $src ) {
+				$skips = [
+					'plugins/mai-engine',
+					'plugins/wp-rocket',
+				];
+
 				// Skip if we already have this script.
 				// This happens with Twitter embeds and similar.
 				if ( in_array( $src, $sources ) ) {
 					continue;
 				}
 
-				// Skip if a Mai script.
-				if ( false !== strpos( $src, 'mai-engine' ) ) {
+				// Skip scripts we don't want to move.
+				if ( $this->has_string( $src, $skips ) ) {
 					continue;
 				}
 
@@ -367,6 +378,126 @@ class Mai_Performance_Enhancer {
 			// Remove current script.
 			$node->parentNode->removeChild( $node );
 		}
+	}
+
+	/**
+	 * Check if a string contains at least one specified string.
+	 * Takens from Mai Engine `mai_has_string()`.
+	 *
+	 * @since TBD
+	 *
+	 * @param string|array $needle   String or array of strings to check for.
+	 * @param string|array $haystack String to check in.
+	 *
+	 * @return string
+	 */
+	function has_string( $needle, $haystack ) {
+		if ( is_array( $needle ) ) {
+			foreach ( $needle as $string ) {
+				if ( ! $this->check_string( $string, $haystack ) ) {
+					continue;
+				}
+
+				return true;
+			}
+
+			return false;
+		}
+
+		return $this->check_string( $needle, $haystack );
+	}
+
+	/**
+	 * Checks string in haystack.
+	 *
+	 * @since TBD
+	 *
+	 * @param string       $string   String to check for.
+	 * @param string|array $haystack String or array of strings to check in.
+	 *
+	 * @return void
+	 */
+	function check_string( $string, $haystack ) {
+		if ( is_array( $haystack ) ) {
+			foreach ( $haystack as $stack ) {
+				if ( false !== strpos( $stack, $string ) ) {
+					return true;
+				}
+			}
+		} elseif ( false !== strpos( $haystack, $string ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Pretty Printing
+	 *
+	 * @since   1.0.0
+	 * @author  Chris Bratlien
+	 *
+	 * @param   mixed $obj
+	 * @param   string $label
+	 *
+	 * @return  null
+	 */
+	function pretty_print( $obj, $label = '' ) {
+		$data = json_encode( print_r( $obj,true ) );
+		?>
+		<style type="text/css">
+			#maiLogger {
+				position: absolute;
+				top: 30px;
+				right: 0px;
+				border-left: 4px solid #bbb;
+				padding: 6px;
+				background: white;
+				color: #444;
+				z-index: 999;
+				font-size: 1.2rem;
+				width: 40vw;
+				height: calc( 100vh - 30px );
+				overflow: scroll;
+			}
+		</style>
+		<script type="text/javascript">
+			var doStuff = function() {
+				var obj    = <?php echo $data; ?>;
+				var logger = document.getElementById('maiLogger');
+				if ( ! logger ) {
+					logger = document.createElement('div');
+					logger.id = 'maiLogger';
+					document.body.appendChild(logger);
+				}
+				////console.log(obj);
+				var pre = document.createElement('pre');
+				var h2  = document.createElement('h2');
+				pre.innerHTML = obj;
+				h2.innerHTML  = '<?php echo addslashes($label); ?>';
+				logger.appendChild(h2);
+				logger.appendChild(pre);
+			};
+			window.addEventListener( "DOMContentLoaded", doStuff, false );
+		</script>
+		<?php
+	}
+
+	/**
+	 * Checks if a string starts with another string.
+	 *
+	 * @param string $haystack The full string.
+	 * @param string $needle   The string to check.
+	 *
+	 * @return bool
+	 */
+	function string_starts_with( $haystack, $needle ) {
+		// PHP 8 has this already.
+		if ( function_exists( 'str_starts_with' ) ) {
+			return str_starts_with( $haystack, $needle );
+		}
+
+		return '' !== (string) $needle && strncmp( $haystack, $needle, 0 === strlen( $needle ) );
 	}
 
 	/**
