@@ -19,7 +19,7 @@ class Mai_Performance_Enhancer {
 	 */
 	function __construct() {
 		// Sets props.
-		$this->scripts  = '';
+		$this->scripts  = [];
 		$this->settings = apply_filters( 'mai_performance_enhancer_settings',
 			[
 				'cache_headers'    => true,
@@ -132,9 +132,6 @@ class Mai_Performance_Enhancer {
 		// Adds preconnect, and dns-prefetch links.
 		$buffer = $this->do_pp( $buffer );
 
-		// Sets up new scripts.
-		$this->setup_scripts();
-
 		// Gets DOMDocument.
 		$dom = $this->get_dom( $buffer );
 
@@ -142,6 +139,9 @@ class Mai_Performance_Enhancer {
 		if ( ! $dom ) {
 			return $buffer;
 		}
+
+		// Sets up new scripts.
+		$this->setup_scripts( $dom );
 
 		// Check for required elements.
 		$head = $dom->getElementsByTagName( 'head' );
@@ -216,41 +216,32 @@ class Mai_Performance_Enhancer {
 			$body_scripts = $body->getElementsByTagName( 'script' );
 
 			if ( $head_scripts->length ) {
-				$this->handle_scripts( $head_scripts, $dom, $body );
+				$this->handle_scripts( $head_scripts );
 			}
 
 			if ( $body_scripts->length ) {
-				$this->handle_scripts( $body_scripts, $dom, $body );
+				$this->handle_scripts( $body_scripts );
 			}
 		}
 
 		// Gets main site-container.
 		$container = $dom->getElementById( 'top' );
 
+		// if ( $container && $this->scripts ) {
 		if ( $container && $this->scripts ) {
-			$fragment = $container->ownerDocument->createDocumentFragment();
-			$fragment->appendXML( $this->scripts );
-			/**
-			 * Add script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
-			 *
-			 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
-			 */
-			$container->parentNode->insertBefore( $fragment, $container->nextSibling );
+			// Reverse, because insertBefore will put them in opposite order.
+			$this->scripts = array_reverse( $this->scripts );
+
+			foreach ( $this->scripts as $object ) {
+				/**
+				 * Moves script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
+				 * No need to `removeChild` first, since this moves the actual node.
+				 *
+				 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
+				 */
+				$container->parentNode->insertBefore( $object, $container->nextSibling );
+			}
 		}
-
-		// if ( $container && $this->script_objects ) {
-		// 	// Reverse, because insertBefore will put them in opposite order.
-		// 	$this->script_objects = array_reverse( $this->script_objects );
-
-		// 	foreach ( $this->script_objects as $node ) {
-		// 		/**
-		// 		 * Add script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
-		// 		 *
-		// 		 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
-		// 		 */
-		// 		$container->parentNode->insertBefore( $node, $container->nextSibling );
-		// 	}
-		// }
 
 		// Save HTML.
 		$buffer = $dom->saveHTML();
@@ -335,12 +326,12 @@ class Mai_Performance_Enhancer {
 	 * Handles scripts before closing body tag.
 	 *
 	 * @param array       $scripts Array of script element nodes.
-	 * @param DOMDocument $dom     The full dom object.
-	 * @param DOMNOde     $body    The body dom node.
+	//  * @param DOMDocument $dom     The full dom object.
+	//  * @param DOMNOde     $body    The body dom node.
 	 *
 	 * @return void
 	 */
-	function handle_scripts( $scripts, $dom, $body ) {
+	function handle_scripts( $scripts ) {
 		static $sources = [];
 
 		foreach ( $scripts as $node ) {
@@ -353,6 +344,7 @@ class Mai_Performance_Enhancer {
 
 			// Check sources.
 			if ( $src ) {
+				// ray( $src );
 				$skips = [
 					'plugins/mai-engine',
 					'plugins/wp-rocket',
@@ -373,10 +365,10 @@ class Mai_Performance_Enhancer {
 			}
 
 			// Add scripts to move later.
-			$this->scripts .= trim( $dom->saveHTML( $node ) ) . PHP_EOL;
+			$this->scripts[] = $node;
 
 			// Remove current script.
-			$node->parentNode->removeChild( $node );
+			// $node->parentNode->removeChild( $node );
 		}
 	}
 
@@ -429,58 +421,6 @@ class Mai_Performance_Enhancer {
 		}
 
 		return false;
-	}
-
-	/**
-	 * Pretty Printing
-	 *
-	 * @since   1.0.0
-	 * @author  Chris Bratlien
-	 *
-	 * @param   mixed $obj
-	 * @param   string $label
-	 *
-	 * @return  null
-	 */
-	function pretty_print( $obj, $label = '' ) {
-		$data = json_encode( print_r( $obj,true ) );
-		?>
-		<style type="text/css">
-			#maiLogger {
-				position: absolute;
-				top: 30px;
-				right: 0px;
-				border-left: 4px solid #bbb;
-				padding: 6px;
-				background: white;
-				color: #444;
-				z-index: 999;
-				font-size: 1.2rem;
-				width: 40vw;
-				height: calc( 100vh - 30px );
-				overflow: scroll;
-			}
-		</style>
-		<script type="text/javascript">
-			var doStuff = function() {
-				var obj    = <?php echo $data; ?>;
-				var logger = document.getElementById('maiLogger');
-				if ( ! logger ) {
-					logger = document.createElement('div');
-					logger.id = 'maiLogger';
-					document.body.appendChild(logger);
-				}
-				////console.log(obj);
-				var pre = document.createElement('pre');
-				var h2  = document.createElement('h2');
-				pre.innerHTML = obj;
-				h2.innerHTML  = '<?php echo addslashes($label); ?>';
-				logger.appendChild(h2);
-				logger.appendChild(pre);
-			};
-			window.addEventListener( "DOMContentLoaded", doStuff, false );
-		</script>
-		<?php
 	}
 
 	/**
@@ -704,13 +644,16 @@ class Mai_Performance_Enhancer {
 	}
 
 	/**
-	 * Adds new scripts to footer.
+	 * Adds new scripts to start of script objects.
 	 *
 	 * @return void
 	 */
-	function setup_scripts() {
+	function setup_scripts( $dom ) {
 		if ( $this->data['scripts'] ) {
-			$this->scripts .= $this->data['scripts'];
+			$fragment = $dom->createDocumentFragment();
+			$fragment->appendXML( $this->data['scripts'] );
+
+			$this->scripts[] = $fragment;
 		}
 	}
 }
