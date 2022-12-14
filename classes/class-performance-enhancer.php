@@ -523,6 +523,7 @@ class Mai_Performance_Enhancer {
 			'new-blocklevel-tags'         => 'fb:like, fb:send, fb:comments, fb:activity, fb:recommendations, fb:like-box, fb:login-button, fb:facepile, fb:live-stream, fb:fan, fb:pile, article, aside, bdi, command, details, summary, figure, figcaption, footer, header, hgroup, mark, meter, nav, picture, progress, ruby, rt, rp, section, span, time, wbr, audio, video, source, embed, track, canvas, datalist, keygen, output, amp-ad, amp-analytics, ampstyle, amp-img, amp-instagram, amp-twitter, amp-youtube, amp-iframe,ad-img, glomex-player',
 			'new-empty-tags'              => 'a,b,li,strong,span,i,div',
 			'output-xhtml'                => 1,
+			'show-body-only'              => 1,
 			'wrap'                        => 0,
 		];
 
@@ -713,7 +714,15 @@ class Mai_Performance_Enhancer {
  * @return void
  */
 add_action( 'after_setup_theme', function() {
-	if ( is_admin() || wp_doing_ajax() ) {
+	if ( is_admin() ) {
+		return;
+	}
+
+	if ( wp_doing_ajax() ) {
+		return;
+	}
+
+	if ( wp_is_json_request() ) {
 		return;
 	}
 
