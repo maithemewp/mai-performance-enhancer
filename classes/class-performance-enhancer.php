@@ -26,7 +26,7 @@ class Mai_Performance_Enhancer {
 				'ttl_homepage'     => '60', // in seconds.
 				'ttl_inner'        => '180', // in seconds.
 				'preload_header'   => true,
-				'tidy'             => true,
+				'tidy'             => false, // Disable this for now.
 				'lazy_images'      => true,
 				'lazy_iframes'     => true,
 				'move_scripts'     => true,
