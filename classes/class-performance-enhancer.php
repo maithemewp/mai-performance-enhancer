@@ -9,6 +9,7 @@
  */
 class Mai_Performance_Enhancer {
 	protected $scripts;
+	protected $sources;
 	protected $settings;
 	protected $data;
 
@@ -20,6 +21,7 @@ class Mai_Performance_Enhancer {
 	function __construct() {
 		// Sets props.
 		$this->scripts  = [];
+		$this->sources  = [];
 		$this->settings = apply_filters( 'mai_performance_enhancer_settings',
 			[
 				'cache_headers'    => true,
@@ -37,7 +39,6 @@ class Mai_Performance_Enhancer {
 		$this->data = apply_filters( 'mai_performance_enhancer_data',
 			[
 				'preconnect_links' => '',
-				'prefetch_links'   => '',
 				'scripts'          => '',
 			]
 		);
@@ -54,7 +55,6 @@ class Mai_Performance_Enhancer {
 
 		// Sanitize data.
 		$this->data['preconnect_links'] = wp_kses_post( trim( $this->data['preconnect_links'] ) );
-		$this->data['prefetch_links']   = wp_kses_post( trim( $this->data['prefetch_links'] ) );
 		$this->data['scripts']          = wp_kses_post( trim( $this->data['scripts'] ) );
 
 		$this->hooks();
@@ -130,7 +130,7 @@ class Mai_Performance_Enhancer {
 		$buffer = $this->do_common( $buffer );
 
 		// Adds preconnect, and dns-prefetch links.
-		$buffer = $this->do_pp( $buffer );
+		// $buffer = $this->do_pp( $buffer );
 
 		// Gets DOMDocument.
 		$dom = $this->get_dom( $buffer );
@@ -216,11 +216,83 @@ class Mai_Performance_Enhancer {
 			$body_scripts = $body->getElementsByTagName( 'script' );
 
 			if ( $head_scripts->length ) {
-				$this->handle_scripts( $head_scripts );
+				$this->handle_scripts( $head_scripts, $head = true );
 			}
 
 			if ( $body_scripts->length ) {
 				$this->handle_scripts( $body_scripts );
+			}
+		}
+
+		// TODO: Automatically find existing preconnect links, remove duplicates, and put them at the top.
+
+		// Handle preconnect links.
+		if ( $this->sources ) {
+			$links       = [];
+			$preconnect  = [];
+			$prefetch    = [];
+			$links       = [];
+			$preconnects = [
+				'quantcast' => [
+					'https://cmp.quantcast.com',
+					'https://secure.quantserve.com',
+				],
+				'googlesyndication' => [
+					'https://adservice.google.com/',
+					'https://googleads.g.doubleclick.net/',
+					'https://www.googletagservices.com/',
+					'https://tpc.googlesyndication.com/',
+					// 'https://pagead2.googlesyndication.com',
+				],
+				'complex' => [
+					'https://media.complex.com',
+
+				],
+				'stats'   => [
+					'https://s.w.org',
+					'https://stats.wp.com',
+				],
+				'taboola' => [
+					'https://cdn.taboola.com',
+				],
+			];
+
+			foreach ( $preconnects as $key => $srcs ) {
+				if ( ! $this->has_string( $key, $this->sources ) ) {
+					continue;
+				}
+
+				$links[] = $key;
+			}
+
+			$links = array_unique( $links );
+
+			if ( $links ) {
+				foreach ( $links as $key ) {
+					foreach ( $preconnects[ $key ] as $src ) {
+						$atts         = 'googlesyndication' === $key ? 'crossorigin="anonymous" ' : '';
+						$preconnect[] = sprintf( '<link rel="preconnect" href="%s" %s/>%s', $src, $atts, PHP_EOL );
+						// Fallback for Firefox still not supporting preconnect.
+						$prefetch[]   = sprintf( '<link rel="dns-prefetch" href="%s"/>%s', $src, PHP_EOL );
+					}
+				}
+			}
+
+			$array = array_merge( $preconnect, $prefetch );
+
+			if ( $array ) {
+				$metas    = $dom->getElementsByTagName( 'meta' );
+				$meta     = $metas->item(0);
+				$string   = PHP_EOL . trim( implode( '', $array ) );
+				$fragment = $dom->createDocumentFragment();
+				$fragment->appendXML( $string );
+				/**
+				 * Moves script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
+				 * No need to `removeChild` first, since this moves the actual node.
+				 *
+				 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
+				 */
+				$meta->parentNode->insertBefore( $fragment, $meta->nextSibling );
 			}
 		}
 
@@ -326,14 +398,13 @@ class Mai_Performance_Enhancer {
 	 * Handles scripts before closing body tag.
 	 *
 	 * @param array       $scripts Array of script element nodes.
+	 * @param bool        $head    If these scripts are from the head.
 	//  * @param DOMDocument $dom     The full dom object.
 	//  * @param DOMNOde     $body    The body dom node.
 	 *
 	 * @return void
 	 */
-	function handle_scripts( $scripts ) {
-		static $sources = [];
-
+	function handle_scripts( $scripts, $head = false ) {
 		foreach ( $scripts as $node ) {
 			$type = $node->getAttribute( 'type' );
 			$src  = $node->getAttribute( 'src' );
@@ -352,7 +423,7 @@ class Mai_Performance_Enhancer {
 
 				// Skip if we already have this script.
 				// This happens with Twitter embeds and similar.
-				if ( in_array( $src, $sources ) ) {
+				if ( in_array( $src, $this->sources ) ) {
 					continue;
 				}
 
@@ -361,7 +432,7 @@ class Mai_Performance_Enhancer {
 					continue;
 				}
 
-				$sources[] = $src;
+				$this->sources[] = $src;
 			}
 
 			// Add scripts to move later.
@@ -659,6 +730,29 @@ class Mai_Performance_Enhancer {
 	 */
 	function do_pp( $buffer ) {
 		$links = [];
+		$links = [
+			// '<link rel="preconnect" href="https://cmp.quantcast.com" />',
+			// '<link rel="preconnect" href="https://secure.quantserve.com" />',
+			// '<link rel="preconnect" href="https://media.complex.com" />',
+			// '<link rel="preconnect" href="https://cdn.taboola.com" />',
+			'<link rel="preconnect" href="https://securepubads.g.doubleclick.net" />',
+			'<link rel="preconnect" href="https://pagead2.googlesyndication.com" />',
+			'<link rel="preconnect" href="https://tpc.googlesyndication.com" />',
+			'<link rel="preconnect" href="https://www.googletagmanager.com" />',
+			'<link rel="preconnect" href="https://www.google-analytics.com" />',
+			// '<link rel="preconnect" href="https://s.w.org" />',
+			// '<link rel="preconnect" href="https://stats.wp.com" />',
+			// '<link rel="preconnect" href="https://waust.at" />',
+			// '<link rel="dns-prefetch" href="https://cmp.quantcast.com" />',
+			// '<link rel="dns-prefetch" href="https://secure.quantserve.com" />',
+			// '<link rel="dns-prefetch" href="https://media.complex.com" />',
+			// '<link rel="dns-prefetch" href="https://cdn.taboola.com" />',
+			'<link rel="dns-prefetch" href="https://securepubads.g.doubleclick.net" />',
+			'<link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />',
+			'<link rel="dns-prefetch" href="https://tpc.googlesyndication.com" />',
+			'<link rel="dns-prefetch" href="https://www.googletagmanager.com" />',
+			'<link rel="dns-prefetch" href="https://www.google-analytics.com" />',
+		];
 
 		if ( $this->data['preconnect_links'] ) {
 			$preconnect = $this->data['preconnect_links'];
@@ -669,16 +763,9 @@ class Mai_Performance_Enhancer {
 				foreach ( $preconnect as $link ) {
 					$links[] = sprintf( '<link rel="preconnect" href="%s" />', esc_url( $link ) );
 				}
-			}
-		}
 
-		if ( $this->data['prefetch_links'] ) {
-			$prefetch = $this->data['prefetch_links'];
-			$prefetch = array_unique( $prefetch );
-			$prefetch = array_filter( $prefetch );
-
-			if ( $prefetch ) {
-				foreach ( $prefetch as $link ) {
+				// Fallback for Firefox still not supporting preconnect.
+				foreach ( $preconnect as $link ) {
 					$links[] = sprintf( '<link rel="dns-prefetch" href="%s" />', esc_url( $link ) );
 				}
 			}
