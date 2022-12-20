@@ -117,9 +117,6 @@ class Mai_Performance_Enhancer {
 		// Sets caching headers.
 		$this->do_cache_headers();
 
-		// Adds existing preloads to header.
-		$this->do_preload_header( $buffer );
-
 		// Tidy.
 		$buffer = $this->do_tidy( $buffer );
 
@@ -128,9 +125,6 @@ class Mai_Performance_Enhancer {
 
 		// Common replacements.
 		$buffer = $this->do_common( $buffer );
-
-		// Adds preconnect, and dns-prefetch links.
-		// $buffer = $this->do_pp( $buffer );
 
 		// Gets DOMDocument.
 		$dom = $this->get_dom( $buffer );
@@ -224,7 +218,39 @@ class Mai_Performance_Enhancer {
 			}
 		}
 
-		// TODO: Automatically find existing preconnect links, remove duplicates, and put them at the top.
+		// Preload headers for server side early hints.
+		if ( $this->settings['preload_header'] ) {
+			$xpath   = new DOMXPath( $dom );
+			$preload = $xpath->query( '/html/head/link[@rel="preload"]' );
+
+			if ( $head_scripts->length ) {
+				foreach ( $preload as $node ) {
+					$href = $node->getAttribute( 'href' );
+					$as   = $node->getAttribute( 'as' );
+
+					// Skip images until we find out how to handle srcset/sizes.
+					if ( 'image' === $as ) {
+						continue;
+					}
+					// if ( 'image' === $as && ! $href ) {
+					// 	$srcset = $node->getAttribute( 'imagesrcset' );
+					// 	$array  = explode( ',', $srcset );
+					// 	$first  = reset( $array );
+					// 	$array  = explode( ' ', $first );
+					// 	$first  = reset( $array );
+					// 	$href   = esc_url( $first );
+					// }
+
+					if ( ! $href && ! $as ) {
+						continue;
+					}
+
+					// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
+					$header = "Link: <{$href}>; rel=preload; as={$as}; crossorigin";
+					header( $header, false );
+				}
+			}
+		}
 
 		// Handle preconnect links.
 		if ( $this->sources ) {
@@ -237,12 +263,19 @@ class Mai_Performance_Enhancer {
 					'https://cmp.quantcast.com',
 					'https://secure.quantserve.com',
 				],
+				'google-analytics' => [
+					'https://www.google-analytics.com',
+				],
+				'googletagmanager' => [
+					'https://www.googletagmanager.com',
+				],
 				'googlesyndication' => [
 					'https://adservice.google.com/',
 					'https://googleads.g.doubleclick.net/',
-					'https://www.googletagservices.com/',
+					'https://pagead2.googlesyndication.com',
+					'https://securepubads.g.doubleclick.net',
 					'https://tpc.googlesyndication.com/',
-					// 'https://pagead2.googlesyndication.com',
+					'https://www.googletagservices.com/',
 				],
 				'complex' => [
 					'https://media.complex.com',
@@ -344,31 +377,6 @@ class Mai_Performance_Enhancer {
 	}
 
 	/**
-	 * Preload links in HTTP headers.
-	 *
-	 * @param string $buffer The existing HTML buffer.
-	 *
-	 * @return string
-	 */
-	function do_preload_header( $buffer ) {
-		if ( ! $this->settings['preload_header'] ) {
-			return;
-		}
-
-		preg_match_all( "#<link rel=\"preload\" href=\"(.*?)\" as=\"(.*?)\" (.*?)>#s", $buffer, $links, PREG_PATTERN_ORDER );
-
-		if ( isset( $links[1] ) && is_array( $links[1] ) && count( $links[1] ) ) {
-			foreach ( $links[1] as $key => $link ) {
-				if ( ! isset( $links[2][$key] ) ) {
-					continue;
-				}
-
-				header( "Link: <{$link}>; rel=preload; as={$links[2][$key]}; crossorigin", false );
-			}
-		}
-	}
-
-	/**
 	 * Gets DOMDocument.
 	 *
 	 * @param string $buffer The existing HTML buffer.
@@ -399,13 +407,16 @@ class Mai_Performance_Enhancer {
 	 *
 	 * @param array       $scripts Array of script element nodes.
 	 * @param bool        $head    If these scripts are from the head.
-	//  * @param DOMDocument $dom     The full dom object.
-	//  * @param DOMNOde     $body    The body dom node.
 	 *
 	 * @return void
 	 */
 	function handle_scripts( $scripts, $head = false ) {
 		foreach ( $scripts as $node ) {
+			// Skip if parent is noscript tag.
+			if ( 'noscript' === $node->parentNode->nodeName ) {
+				continue;
+			}
+
 			$type = $node->getAttribute( 'type' );
 			$src  = $node->getAttribute( 'src' );
 
@@ -416,9 +427,9 @@ class Mai_Performance_Enhancer {
 			// Check sources.
 			if ( $src ) {
 				$skips = [
+					'plugins/autoptimize',
 					'plugins/mai-engine',
 					'plugins/wp-rocket',
-					// 'googlesyndication',
 				];
 
 				// Skip if we already have this script.
@@ -717,64 +728,6 @@ class Mai_Performance_Enhancer {
 		];
 
 		$buffer = str_ireplace( $find, $replace, $buffer );
-
-		return $buffer;
-	}
-
-	/**
-	 * Handles preconnect, and dns-prefetch.
-	 *
-	 * @param string $buffer The existing HTML buffer.
-	 *
-	 * @return string
-	 */
-	function do_pp( $buffer ) {
-		$links = [];
-		$links = [
-			// '<link rel="preconnect" href="https://cmp.quantcast.com" />',
-			// '<link rel="preconnect" href="https://secure.quantserve.com" />',
-			// '<link rel="preconnect" href="https://media.complex.com" />',
-			// '<link rel="preconnect" href="https://cdn.taboola.com" />',
-			'<link rel="preconnect" href="https://securepubads.g.doubleclick.net" />',
-			'<link rel="preconnect" href="https://pagead2.googlesyndication.com" />',
-			'<link rel="preconnect" href="https://tpc.googlesyndication.com" />',
-			'<link rel="preconnect" href="https://www.googletagmanager.com" />',
-			'<link rel="preconnect" href="https://www.google-analytics.com" />',
-			// '<link rel="preconnect" href="https://s.w.org" />',
-			// '<link rel="preconnect" href="https://stats.wp.com" />',
-			// '<link rel="preconnect" href="https://waust.at" />',
-			// '<link rel="dns-prefetch" href="https://cmp.quantcast.com" />',
-			// '<link rel="dns-prefetch" href="https://secure.quantserve.com" />',
-			// '<link rel="dns-prefetch" href="https://media.complex.com" />',
-			// '<link rel="dns-prefetch" href="https://cdn.taboola.com" />',
-			'<link rel="dns-prefetch" href="https://securepubads.g.doubleclick.net" />',
-			'<link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />',
-			'<link rel="dns-prefetch" href="https://tpc.googlesyndication.com" />',
-			'<link rel="dns-prefetch" href="https://www.googletagmanager.com" />',
-			'<link rel="dns-prefetch" href="https://www.google-analytics.com" />',
-		];
-
-		if ( $this->data['preconnect_links'] ) {
-			$preconnect = $this->data['preconnect_links'];
-			$preconnect = array_unique( $preconnect );
-			$preconnect = array_filter( $preconnect );
-
-			if ( $preconnect ) {
-				foreach ( $preconnect as $link ) {
-					$links[] = sprintf( '<link rel="preconnect" href="%s" />', esc_url( $link ) );
-				}
-
-				// Fallback for Firefox still not supporting preconnect.
-				foreach ( $preconnect as $link ) {
-					$links[] = sprintf( '<link rel="dns-prefetch" href="%s" />', esc_url( $link ) );
-				}
-			}
-		}
-
-		if ( $links ) {
-			$links  = implode( PHP_EOL, $links );
-			$buffer = str_replace( '<meta charset="UTF-8" />', '<meta charset="UTF-8" />' . PHP_EOL . $links, $buffer );
-		}
 
 		return $buffer;
 	}
