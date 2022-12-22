@@ -281,11 +281,10 @@ class Mai_Performance_Enhancer {
 					'https://tpc.googlesyndication.com/',
 					'https://www.googletagservices.com/',
 				],
-				'complex' => [
+				'complex.com' => [
 					'https://media.complex.com',
-
 				],
-				'stats'   => [
+				'stats.wp' => [
 					'https://s.w.org',
 					'https://stats.wp.com',
 				],
@@ -447,7 +446,6 @@ class Mai_Performance_Enhancer {
 				continue;
 			}
 
-
 			// Check sources.
 			if ( $src ) {
 				// Remove node and continue if we already moved this script.
@@ -464,12 +462,24 @@ class Mai_Performance_Enhancer {
 				];
 
 				// Skip scripts we don't want to move.
-				if ( $this->has_string( $src, $skips ) ) {
+				if ( $this->has_string( $skips, $src ) ) {
 					continue;
 				}
 
 				// Add to sources.
 				$this->sources[] = $src;
+			}
+			// No source.
+			else {
+				$inner = trim( (string) $node->textContent );
+				$skips = [
+					'no-js',
+				];
+
+				// Skip if inline script has text string.
+				if ( $inner && $this->has_string( $skips, $inner ) ) {
+					continue;
+				}
 			}
 
 			// Check if a nobot script.
@@ -478,10 +488,6 @@ class Mai_Performance_Enhancer {
 			// Add scripts to move later.
 			if ( $node ) {
 				$this->scripts[] = $node;
-			}
-			// Remove node since this will be dynamically added with PHP now.
-			else {
-				// $node->parentNode->removeChild( $node );
 			}
 		}
 	}
@@ -499,8 +505,12 @@ class Mai_Performance_Enhancer {
 		static $i = 1;
 
 		$human = [
-			'mai-sandbox/assets/js/test',
-			'someThing',
+			'.adthrive',
+			'amazon-adsystem.com',
+			'connect.facebook.net',
+			'googleadservices.com',
+			'googletagmanager.com',
+			'pinterest.com',
 		];
 
 		$inner = trim( (string) $node->textContent );
@@ -511,7 +521,7 @@ class Mai_Performance_Enhancer {
 		if ( ( $src && $this->has_string( $human, $src ) ) || ( $inner && $this->has_string( $human, $inner ) ) ) {
 			// Set var and create script.
 			$var           = 'nobot' . $i;
-			$this->inject .= sprintf( "var %s = document.createElement('script');%s", $var, PHP_EOL );
+			$this->inject .= sprintf( "var %s = document.createElement( 'script' );%s", $var, PHP_EOL );
 
 			// Set attributes.
 			foreach ( $node->attributes as $att ) {
@@ -520,7 +530,6 @@ class Mai_Performance_Enhancer {
 
 			// If no src and has inner HTML, add it.
 			if ( ! $src && $inner ) {
-				// $this->inject .= sprintf( "%s.innerHTML = '%s';", $var, $inner );
 				$this->inject .= sprintf( "%s.innerHTML = %s;", $var, json_encode( $inner ) );
 			}
 
@@ -635,11 +644,6 @@ class Mai_Performance_Enhancer {
 		}
 
 		return false !== strpos( $haystack, $needle );
-		// elseif ( false !== strpos( $haystack, $needle ) ) {
-			// return true;
-		// }
-
-		// return false;
 	}
 
 	/**
