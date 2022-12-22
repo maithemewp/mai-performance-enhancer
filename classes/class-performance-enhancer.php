@@ -9,7 +9,9 @@
  */
 class Mai_Performance_Enhancer {
 	protected $scripts;
+	protected $nobots;
 	protected $sources;
+	protected $inject;
 	protected $settings;
 	protected $data;
 
@@ -21,7 +23,9 @@ class Mai_Performance_Enhancer {
 	function __construct() {
 		// Sets props.
 		$this->scripts  = [];
+		$this->nobots   = [];
 		$this->sources  = [];
+		$this->inject   = '';
 		$this->settings = apply_filters( 'mai_performance_enhancer_settings',
 			[
 				'cache_headers'    => true,
@@ -210,7 +214,7 @@ class Mai_Performance_Enhancer {
 			$body_scripts = $body->getElementsByTagName( 'script' );
 
 			if ( $head_scripts->length ) {
-				$this->handle_scripts( $head_scripts, $head = true );
+				$this->handle_scripts( $head_scripts );
 			}
 
 			if ( $body_scripts->length ) {
@@ -332,19 +336,39 @@ class Mai_Performance_Enhancer {
 		// Gets main site-container.
 		$container = $dom->getElementById( 'top' );
 
-		// if ( $container && $this->scripts ) {
-		if ( $container && $this->scripts ) {
-			// Reverse, because insertBefore will put them in opposite order.
-			$this->scripts = array_reverse( $this->scripts );
+		if ( $container ) {
 
-			foreach ( $this->scripts as $object ) {
-				/**
-				 * Moves script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
-				 * No need to `removeChild` first, since this moves the actual node.
-				 *
-				 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
-				 */
-				$container->parentNode->insertBefore( $object, $container->nextSibling );
+			if ( $this->inject ) {
+				$nobots  = "window.notBot=(function(){var ua=navigator.userAgent||navigator.vendor||window.opera;var crl='(Googlebot|Googlebot-Mobile|Googlebot-Image|Googlebot-Video|Chrome-Lighthouse|lighthouse|pagespeed|(Google Page Speed Insights)|Bingbot|Applebot|PingdomPageSpeed|GTmetrix|PTST|YLT|Phantomas)';var re=new RegExp(crl,'i');if(re.test(ua)){return false;}else{return true;}})();" . PHP_EOL;
+				$nobots .= 'if ( notBot ) {' . PHP_EOL;
+				$nobots .= "const nobots = document.getElementById( 'mai-nobots' );" . PHP_EOL;
+				$nobots .= $this->inject . PHP_EOL;
+				$nobots .= '}' . PHP_EOL;
+				$element = $dom->createElement( 'script', $nobots );
+				$element->setAttribute( 'id', 'mai-nobots' );
+				$this->scripts = array_merge( [ $element ], $this->scripts );
+			}
+
+			if ( $this->scripts ) {
+				// Reverse, because insertBefore will put them in opposite order.
+				$this->scripts = array_reverse( $this->scripts );
+
+				foreach ( $this->scripts as $object ) {
+					/**
+					 * Moves script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
+					 * No need to `removeChild` first, since this moves the actual node.
+					 *
+					 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
+					 */
+					$container->parentNode->insertBefore( $object, $container->nextSibling );
+				}
+			}
+		}
+
+		if ( $this->nobots ) {
+			foreach ( $this->nobots as $script ) {
+				// Remove node since this will be dynamically added with PHP now.
+				$script->parentNode->removeChild( $script );
 			}
 		}
 
@@ -405,122 +429,184 @@ class Mai_Performance_Enhancer {
 	/**
 	 * Handles scripts before closing body tag.
 	 *
-	 * @param array       $scripts Array of script element nodes.
-	 * @param bool        $head    If these scripts are from the head.
+	 * @param array $scripts Array of script element nodes.
 	 *
 	 * @return void
 	 */
-	function handle_scripts( $scripts, $head = false ) {
+	function handle_scripts( $scripts ) {
 		foreach ( $scripts as $node ) {
 			// Skip if parent is noscript tag.
 			if ( 'noscript' === $node->parentNode->nodeName ) {
 				continue;
 			}
 
-			$type = $node->getAttribute( 'type' );
-			$src  = $node->getAttribute( 'src' );
+			$type = (string) $node->getAttribute( 'type' );
+			$src  = (string) $node->getAttribute( 'src' );
 
 			if ( $type && 'application/ld+json' === $type ) {
 				continue;
 			}
 
+
 			// Check sources.
 			if ( $src ) {
+				// Remove node and continue if we already moved this script.
+				// This happens with Twitter embeds and similar.
+				if ( in_array( $src, $this->sources ) ) {
+					$node->parentNode->removeChild( $node );
+					continue;
+				}
+
 				$skips = [
 					'plugins/autoptimize',
 					'plugins/mai-engine',
 					'plugins/wp-rocket',
 				];
 
-				// Skip if we already have this script.
-				// This happens with Twitter embeds and similar.
-				if ( in_array( $src, $this->sources ) ) {
-					continue;
-				}
-
 				// Skip scripts we don't want to move.
 				if ( $this->has_string( $src, $skips ) ) {
 					continue;
 				}
 
+				// Add to sources.
 				$this->sources[] = $src;
 			}
 
+			// Check if a nobot script.
+			$node = $this->handle_nobots( $node, $src );
+
 			// Add scripts to move later.
-			$this->scripts[] = $node;
+			if ( $node ) {
+				$this->scripts[] = $node;
+			}
+			// Remove node since this will be dynamically added with PHP now.
+			else {
+				// $node->parentNode->removeChild( $node );
+			}
 		}
 	}
 
 	/**
-	 * Pretty Printing
+	 * Handles robot scripts.
+	 * Adds them to a string to by dynamically created via JS later.
 	 *
-	 * @author  Chris Bratlien
+	 * @param DOMNode $node The script node.
+	 * @param string  $src  The script src string.
 	 *
-	 * @param   mixed $obj
-	 * @param   string $label
-	 *
-	 * @return  null
+	 * @return DOMNode|false
 	 */
-	function pretty_print( $obj, $label = '' ) {
-		$data = json_encode( print_r( $obj,true ) );
-		?>
-		<style type="text/css">
-			#maiLogger {
-				position: absolute;
-				top: 30px;
-				right: 0px;
-				border-left: 4px solid #bbb;
-				padding: 6px;
-				background: white;
-				color: #444;
-				z-index: 999;
-				font-size: 1.2rem;
-				width: 40vw;
-				height: calc( 100vh - 30px );
-				overflow: scroll;
+	function handle_nobots( $node, $src = '' ) {
+		static $i = 1;
+
+		$human = [
+			'mai-sandbox/assets/js/test',
+			'someThing',
+		];
+
+		$inner = trim( (string) $node->textContent );
+
+		// This was breaking. Need to check inside script only.
+		// $inner = $node->ownerDocument->saveHTML( $node );
+
+		if ( ( $src && $this->has_string( $human, $src ) ) || ( $inner && $this->has_string( $human, $inner ) ) ) {
+			// Set var and create script.
+			$var           = 'nobot' . $i;
+			$this->inject .= sprintf( "var %s = document.createElement('script');%s", $var, PHP_EOL );
+
+			// Set attributes.
+			foreach ( $node->attributes as $att ) {
+				$this->inject .= sprintf( "%s.setAttribute( '%s', '%s' );", $var, $att->name, $att->value );
 			}
-		</style>
-		<script type="text/javascript">
-			var doStuff = function() {
-				var obj    = <?php echo $data; ?>;
-				var logger = document.getElementById('maiLogger');
-				if ( ! logger ) {
-					logger = document.createElement('div');
-					logger.id = 'maiLogger';
-					document.body.appendChild(logger);
-				}
-				////console.log(obj);
-				var pre = document.createElement('pre');
-				var h2  = document.createElement('h2');
-				pre.innerHTML = obj;
-				h2.innerHTML  = '<?php echo addslashes($label); ?>';
-				logger.appendChild(h2);
-				logger.appendChild(pre);
-			};
-			window.addEventListener( "DOMContentLoaded", doStuff, false );
-		</script>
-		<?php
+
+			// If no src and has inner HTML, add it.
+			if ( ! $src && $inner ) {
+				// $this->inject .= sprintf( "%s.innerHTML = '%s';", $var, $inner );
+				$this->inject .= sprintf( "%s.innerHTML = %s;", $var, json_encode( $inner ) );
+			}
+
+			// Insert script.
+			$this->inject .= sprintf( 'nobots.parentNode.insertBefore( %s, nobots );', $var );
+
+			// Add to nobots array.
+			$this->nobots[] = $node;
+
+			// Increment counter.
+			$i++;
+
+			return false;
+		}
+
+		return $node;
 	}
 
 	/**
 	 * Check if a string contains at least one specified string.
-	 * Takens from Mai Engine `mai_has_string()`.
+	 * Taken from Mai Engine `mai_has_string()`.
 	 *
 	 * @since TBD
 	 *
 	 * @param string|array $needle   String or array of strings to check for.
-	 * @param string|array $haystack String to check in.
+	 * @param string|array $haystack String or array to check in.
 	 *
 	 * @return string
 	 */
 	function has_string( $needle, $haystack ) {
+		// Needle array.
+		if ( is_array( $needle ) ) {
+			foreach ( $needle as $value ) {
+				// Haystack array.
+				if ( is_array( $haystack ) ) {
+					foreach ( $haystack as $stack ) {
+						if ( false !== strpos( $stack, $value ) ) {
+							return true;
+						}
+					}
+					// Haystack string.
+				} else {
+					if ( false !== strpos( $haystack, $value ) ) {
+						return true;
+					}
+				}
+			}
+		}
+		// Needle string.
+		else {
+			// Haystack array.
+			if ( is_array( $haystack ) ) {
+				foreach ( $haystack as $stack ) {
+					if ( false !== strpos( $stack, $needle ) ) {
+						return true;
+					}
+				}
+			}
+			// Haystack string.
+			else {
+				if ( false !== strpos( $haystack, $needle ) ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check if a string contains at least one specified string.
+	 * Taken from Mai Engine `mai_has_string()`.
+	 *
+	 * @since TBD
+	 *
+	 * @param string|array $needle   String or array of strings to check for.
+	 * @param string|array $haystack String or array to check in.
+	 *
+	 * @return string
+	 */
+	function has_string_og( $needle, $haystack ) {
 		if ( is_array( $needle ) ) {
 			foreach ( $needle as $string ) {
-				if ( ! $this->check_string( $string, $haystack ) ) {
-					continue;
+				if ( $this->check_string( $string, $haystack ) ) {
+					return true;
 				}
-
-				return true;
 			}
 
 			return false;
@@ -534,23 +620,26 @@ class Mai_Performance_Enhancer {
 	 *
 	 * @since TBD
 	 *
-	 * @param string       $string   String to check for.
+	 * @param string       $needle   String to check for.
 	 * @param string|array $haystack String or array of strings to check in.
 	 *
 	 * @return void
 	 */
-	function check_string( $string, $haystack ) {
+	function check_string_og( $needle, $haystack ) {
 		if ( is_array( $haystack ) ) {
 			foreach ( $haystack as $stack ) {
-				if ( false !== strpos( $stack, $string ) ) {
+				if ( false !== strpos( $stack, $needle ) ) {
 					return true;
 				}
 			}
-		} elseif ( false !== strpos( $haystack, $string ) ) {
-			return true;
 		}
 
-		return false;
+		return false !== strpos( $haystack, $needle );
+		// elseif ( false !== strpos( $haystack, $needle ) ) {
+			// return true;
+		// }
+
+		// return false;
 	}
 
 	/**
@@ -744,6 +833,57 @@ class Mai_Performance_Enhancer {
 
 			$this->scripts[] = $fragment;
 		}
+	}
+
+	/**
+	 * Pretty Printing
+	 *
+	 * @author  Chris Bratlien
+	 *
+	 * @param   mixed $obj
+	 * @param   string $label
+	 *
+	 * @return  null
+	 */
+	function pretty_print( $obj, $label = '' ) {
+		$data = json_encode( print_r( $obj,true ) );
+		?>
+		<style type="text/css">
+			#maiLogger {
+				position: absolute;
+				top: 30px;
+				right: 0px;
+				border-left: 4px solid #bbb;
+				padding: 6px;
+				background: white;
+				color: #444;
+				z-index: 999;
+				font-size: 1.2rem;
+				width: 40vw;
+				height: calc( 100vh - 30px );
+				overflow: scroll;
+			}
+		</style>
+		<script type="text/javascript">
+			var doStuff = function() {
+				var obj    = <?php echo $data; ?>;
+				var logger = document.getElementById('maiLogger');
+				if ( ! logger ) {
+					logger = document.createElement('div');
+					logger.id = 'maiLogger';
+					document.body.appendChild(logger);
+				}
+				////console.log(obj);
+				var pre = document.createElement('pre');
+				var h2  = document.createElement('h2');
+				pre.innerHTML = obj;
+				h2.innerHTML  = '<?php echo addslashes($label); ?>';
+				logger.appendChild(h2);
+				logger.appendChild(pre);
+			};
+			window.addEventListener( "DOMContentLoaded", doStuff, false );
+		</script>
+		<?php
 	}
 }
 
