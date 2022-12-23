@@ -358,6 +358,7 @@ class Mai_Performance_Enhancer {
 
 		$human = [
 			'.adthrive',
+			'advanced-ads',
 			'amazon-adsystem.com',
 			'connect.facebook.net',
 			'googleadservices.com',
