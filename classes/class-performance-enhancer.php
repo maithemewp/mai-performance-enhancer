@@ -616,13 +616,23 @@ class Mai_Performance_Enhancer {
 
 		// Build bot checker and add injected scripts.
 		if ( $this->inject ) {
-			$nobots  = "window.notBot=(function(){var ua=navigator.userAgent||navigator.vendor||window.opera;var crl='(Googlebot|Googlebot-Mobile|Googlebot-Image|Googlebot-Video|Chrome-Lighthouse|lighthouse|pagespeed|(Google Page Speed Insights)|Bingbot|Applebot|PingdomPageSpeed|GTmetrix|PTST|YLT|Phantomas)';var re=new RegExp(crl,'i');if(re.test(ua)){return false;}else{return true;}})();" . PHP_EOL;
-			$nobots .= 'if ( notBot ) {' . PHP_EOL;
-			$nobots .= "const nobots = document.getElementById( 'mai-nobots' );" . PHP_EOL;
-			$nobots .= $this->inject . PHP_EOL;
+			// JS in HTML.
+			$nobots  = '';
+			$nobots .= 'window.isBot = (function(){' . PHP_EOL;
+				$nobots .= "var agents ='(Googlebot|Googlebot-Mobile|Googlebot-Image|Googlebot-Video|Chrome-Lighthouse|lighthouse|pagespeed|(Google Page Speed Insights)|Bingbot|Applebot|PingdomPageSpeed|GTmetrix|PTST|YLT|Phantomas)';";
+				$nobots .= "var regex  = new RegExp( agents, 'i' );" . PHP_EOL;
+				$nobots .= "return regex.test( navigator.userAgent );" . PHP_EOL;
+			$nobots .= '})();' . PHP_EOL;
+			$nobots .= 'if ( ! isBot ) {' . PHP_EOL;
+				$nobots .= "const nobots = document.getElementById( 'mai-nobots' );" . PHP_EOL;
+				$nobots .= $this->inject . PHP_EOL;
 			$nobots .= '}' . PHP_EOL;
+
+			// Build element.
 			$element = $dom->createElement( 'script', $nobots );
 			$element->setAttribute( 'id', 'mai-nobots' );
+
+			// Add to scripts.
 			$this->scripts = array_merge( [ $element ], $this->scripts );
 		}
 
