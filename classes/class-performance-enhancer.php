@@ -208,21 +208,6 @@ class Mai_Performance_Enhancer {
 	}
 
 	/**
-	 * Moves script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
-	 * No need to `removeChild` first, since this moves the actual node.
-	 *
-	 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
-	 *
-	 * @param DOMNode    $node    The node.
-	 * @param DOMElement $element The element to insert the node after.
-	 *
-	 * @return void
-	 */
-	function insertafter( $node, $element ) {
-		$element->parentNode->insertBefore( $node, $element->nextSibling );
-	}
-
-	/**
 	 * Sets cache headers.
 	 *
 	 * @return void
@@ -435,30 +420,32 @@ class Mai_Performance_Enhancer {
 		$xpath   = new DOMXPath( $dom );
 		$preload = $xpath->query( '/html/head/link[@rel="preload"]' );
 
-		foreach ( $preload as $node ) {
-			$href = $node->getAttribute( 'href' );
-			$as   = $node->getAttribute( 'as' );
+		if ( $preload->length ) {
+			foreach ( $preload as $node ) {
+				$href = $node->getAttribute( 'href' );
+				$as   = $node->getAttribute( 'as' );
 
-			// Skip images until we find out how to handle srcset/sizes.
-			if ( 'image' === $as ) {
-				continue;
+				// Skip images until we find out how to handle srcset/sizes.
+				if ( 'image' === $as ) {
+					continue;
+				}
+				// if ( 'image' === $as && ! $href ) {
+				// 	$srcset = $node->getAttribute( 'imagesrcset' );
+				// 	$array  = explode( ',', $srcset );
+				// 	$first  = reset( $array );
+				// 	$array  = explode( ' ', $first );
+				// 	$first  = reset( $array );
+				// 	$href   = esc_url( $first );
+				// }
+
+				if ( ! $href && ! $as ) {
+					continue;
+				}
+
+				// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
+				$header = "Link: <{$href}>; rel=preload; as={$as}; crossorigin";
+				header( $header, false );
 			}
-			// if ( 'image' === $as && ! $href ) {
-			// 	$srcset = $node->getAttribute( 'imagesrcset' );
-			// 	$array  = explode( ',', $srcset );
-			// 	$first  = reset( $array );
-			// 	$array  = explode( ' ', $first );
-			// 	$first  = reset( $array );
-			// 	$href   = esc_url( $first );
-			// }
-
-			if ( ! $href && ! $as ) {
-				continue;
-			}
-
-			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
-			$header = "Link: <{$href}>; rel=preload; as={$as}; crossorigin";
-			header( $header, false );
 		}
 	}
 
@@ -672,57 +659,6 @@ class Mai_Performance_Enhancer {
 		foreach ( $this->remove as $node ) {
 			$node->parentNode->removeChild( $node );
 		}
-	}
-
-	/**
-	 * Check if a string contains at least one specified string.
-	 * Taken from Mai Engine `mai_has_string()`.
-	 *
-	 * @since TBD
-	 *
-	 * @param string|array $needle   String or array of strings to check for.
-	 * @param string|array $haystack String or array to check in.
-	 *
-	 * @return string
-	 */
-	function has_string( $needle, $haystack ) {
-		// Needle array.
-		if ( is_array( $needle ) ) {
-			foreach ( $needle as $value ) {
-				// Haystack array.
-				if ( is_array( $haystack ) ) {
-					foreach ( $haystack as $stack ) {
-						if ( false !== strpos( $stack, $value ) ) {
-							return true;
-						}
-					}
-					// Haystack string.
-				} else {
-					if ( false !== strpos( $haystack, $value ) ) {
-						return true;
-					}
-				}
-			}
-		}
-		// Needle string.
-		else {
-			// Haystack array.
-			if ( is_array( $haystack ) ) {
-				foreach ( $haystack as $stack ) {
-					if ( false !== strpos( $stack, $needle ) ) {
-						return true;
-					}
-				}
-			}
-			// Haystack string.
-			else {
-				if ( false !== strpos( $haystack, $needle ) ) {
-					return true;
-				}
-			}
-		}
-
-		return false;
 	}
 
 	/**
@@ -966,6 +902,72 @@ class Mai_Performance_Enhancer {
 
 			$node->setAttribute( 'loading', 'lazy' );
 		}
+	}
+
+	/**
+	 * Check if a string contains at least one specified string.
+	 * Taken from Mai Engine `mai_has_string()`.
+	 *
+	 * @since TBD
+	 *
+	 * @param string|array $needle   String or array of strings to check for.
+	 * @param string|array $haystack String or array to check in.
+	 *
+	 * @return string
+	 */
+	function has_string( $needle, $haystack ) {
+		// Needle array.
+		if ( is_array( $needle ) ) {
+			foreach ( $needle as $value ) {
+				// Haystack array.
+				if ( is_array( $haystack ) ) {
+					foreach ( $haystack as $stack ) {
+						if ( false !== strpos( $stack, $value ) ) {
+							return true;
+						}
+					}
+					// Haystack string.
+				} else {
+					if ( false !== strpos( $haystack, $value ) ) {
+						return true;
+					}
+				}
+			}
+		}
+		// Needle string.
+		else {
+			// Haystack array.
+			if ( is_array( $haystack ) ) {
+				foreach ( $haystack as $stack ) {
+					if ( false !== strpos( $stack, $needle ) ) {
+						return true;
+					}
+				}
+			}
+			// Haystack string.
+			else {
+				if ( false !== strpos( $haystack, $needle ) ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Moves script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
+	 * No need to `removeChild` first, since this moves the actual node.
+	 *
+	 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
+	 *
+	 * @param DOMNode    $node    The node.
+	 * @param DOMElement $element The element to insert the node after.
+	 *
+	 * @return void
+	 */
+	function insertafter( $node, $element ) {
+		$element->parentNode->insertBefore( $node, $element->nextSibling );
 	}
 
 	/**
