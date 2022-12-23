@@ -3,14 +3,13 @@
 /**
  * Manipulates the final output of the dom for performance tweaks.
  *
- * @version 0.1.0
- *
  * @return void
  */
 class Mai_Performance_Enhancer {
 	protected $scripts;
-	protected $nobots;
 	protected $sources;
+	protected $styles;
+	protected $remove;
 	protected $inject;
 	protected $settings;
 	protected $data;
@@ -23,8 +22,9 @@ class Mai_Performance_Enhancer {
 	function __construct() {
 		// Sets props.
 		$this->scripts  = [];
-		$this->nobots   = [];
 		$this->sources  = [];
+		$this->styles   = [];
+		$this->remove   = [];
 		$this->inject   = '';
 		$this->settings = apply_filters( 'mai_performance_enhancer_settings',
 			[
@@ -152,63 +152,23 @@ class Mai_Performance_Enhancer {
 			return $buffer;
 		}
 
-		// Lazy load images.
-		if ( $this->settings['lazy_images'] ) {
-			$main = $body->getElementsByTagName( 'main' );
-			$main = $main && $main->item(0) ? $main->item(0) : false;
+		// Get main element.
+		$main = $body->getElementsByTagName( 'main' );
+		$main = $main && $main->item(0) ? $main->item(0) : false;
 
-			if ( $main ) {
-				$images = $main->getElementsByTagName( 'img' );
+		if ( $main ) {
+			// Lazy load images.
+			if ( $this->settings['lazy_images'] ) {
+				$this->do_lazy_images( $main );
+			}
 
-				if ( $images->length ) {
-					foreach ( $images as $node ) {
-						static $first = true;
-
-						// Skip the first, likely above the fold.
-						if ( $first ) {
-							continue;
-						}
-
-						$first = false;
-
-						// Skip if loading attribute already exists.
-						if ( $node->getAttribute( 'loading' ) ) {
-							continue;
-						}
-
-						// Skip if no-lazy class.
-						if ( in_array( 'no-lazy', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
-							continue;
-						}
-
-						$node->setAttribute( 'loading', 'lazy' );
-					}
-				}
+			// Lazy load iframes.
+			if ( $this->settings['lazy_iframes'] ) {
+				$this->do_lazy_iframes( $main );
 			}
 		}
 
-		// Lazy load iframes.
-		if ( $this->settings['lazy_iframes'] ) {
-			$iframes = $head->getElementsByTagName( 'iframes' );
-
-			if ( $iframes->length ) {
-				foreach ( $iframes as $node ) {
-					// Skip if loading attribute already exists.
-					if ( $node->getAttribute( 'loading' ) ) {
-						continue;
-					}
-
-					// Skip if no-lazy class.
-					if ( in_array( 'no-lazy', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
-						continue;
-					}
-
-					$node->setAttribute( 'loading', 'lazy' );
-				}
-			}
-		}
-
-		// Move scripts.
+		// Handle scripts.
 		if ( $this->settings['move_scripts'] ) {
 			$head_scripts = $head->getElementsByTagName( 'script' );
 			$body_scripts = $body->getElementsByTagName( 'script' );
@@ -224,157 +184,42 @@ class Mai_Performance_Enhancer {
 
 		// Preload headers for server side early hints.
 		if ( $this->settings['preload_header'] ) {
-			$xpath   = new DOMXPath( $dom );
-			$preload = $xpath->query( '/html/head/link[@rel="preload"]' );
-
-			if ( $head_scripts->length ) {
-				foreach ( $preload as $node ) {
-					$href = $node->getAttribute( 'href' );
-					$as   = $node->getAttribute( 'as' );
-
-					// Skip images until we find out how to handle srcset/sizes.
-					if ( 'image' === $as ) {
-						continue;
-					}
-					// if ( 'image' === $as && ! $href ) {
-					// 	$srcset = $node->getAttribute( 'imagesrcset' );
-					// 	$array  = explode( ',', $srcset );
-					// 	$first  = reset( $array );
-					// 	$array  = explode( ' ', $first );
-					// 	$first  = reset( $array );
-					// 	$href   = esc_url( $first );
-					// }
-
-					if ( ! $href && ! $as ) {
-						continue;
-					}
-
-					// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
-					$header = "Link: <{$href}>; rel=preload; as={$as}; crossorigin";
-					header( $header, false );
-				}
-			}
+			$this->do_preload_headers( $dom );
 		}
 
 		// Handle preconnect links.
 		if ( $this->sources ) {
-			$links       = [];
-			$preconnect  = [];
-			$prefetch    = [];
-			$links       = [];
-			$preconnects = [
-				'quantcast' => [
-					'https://cmp.quantcast.com',
-					'https://secure.quantserve.com',
-				],
-				'google-analytics' => [
-					'https://www.google-analytics.com',
-				],
-				'googletagmanager' => [
-					'https://www.googletagmanager.com',
-				],
-				'googlesyndication' => [
-					'https://adservice.google.com/',
-					'https://googleads.g.doubleclick.net/',
-					'https://pagead2.googlesyndication.com',
-					'https://securepubads.g.doubleclick.net',
-					'https://tpc.googlesyndication.com/',
-					'https://www.googletagservices.com/',
-				],
-				'complex.com' => [
-					'https://media.complex.com',
-				],
-				'stats.wp' => [
-					'https://s.w.org',
-					'https://stats.wp.com',
-				],
-				'taboola' => [
-					'https://cdn.taboola.com',
-				],
-			];
-
-			foreach ( $preconnects as $key => $srcs ) {
-				if ( ! $this->has_string( $key, $this->sources ) ) {
-					continue;
-				}
-
-				$links[] = $key;
-			}
-
-			$links = array_unique( $links );
-
-			if ( $links ) {
-				foreach ( $links as $key ) {
-					foreach ( $preconnects[ $key ] as $src ) {
-						$atts         = 'googlesyndication' === $key ? 'crossorigin="anonymous" ' : '';
-						$preconnect[] = sprintf( '<link rel="preconnect" href="%s" %s/>%s', $src, $atts, PHP_EOL );
-						// Fallback for Firefox still not supporting preconnect.
-						$prefetch[]   = sprintf( '<link rel="dns-prefetch" href="%s"/>%s', $src, PHP_EOL );
-					}
-				}
-			}
-
-			$array = array_merge( $preconnect, $prefetch );
-
-			if ( $array ) {
-				$metas    = $dom->getElementsByTagName( 'meta' );
-				$meta     = $metas->item(0);
-				$string   = PHP_EOL . trim( implode( '', $array ) );
-				$fragment = $dom->createDocumentFragment();
-				$fragment->appendXML( $string );
-				/**
-				 * Moves script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
-				 * No need to `removeChild` first, since this moves the actual node.
-				 *
-				 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
-				 */
-				$meta->parentNode->insertBefore( $fragment, $meta->nextSibling );
-			}
+			$this->do_preconnects( $dom );
 		}
 
-		// Gets main site-container.
-		$container = $dom->getElementById( 'top' );
+		// Handle styles.
+		$this->handle_styles( $dom );
 
-		if ( $container ) {
+		// Handle injects.
+		$this->handle_injects( $dom );
 
-			if ( $this->inject ) {
-				$nobots  = "window.notBot=(function(){var ua=navigator.userAgent||navigator.vendor||window.opera;var crl='(Googlebot|Googlebot-Mobile|Googlebot-Image|Googlebot-Video|Chrome-Lighthouse|lighthouse|pagespeed|(Google Page Speed Insights)|Bingbot|Applebot|PingdomPageSpeed|GTmetrix|PTST|YLT|Phantomas)';var re=new RegExp(crl,'i');if(re.test(ua)){return false;}else{return true;}})();" . PHP_EOL;
-				$nobots .= 'if ( notBot ) {' . PHP_EOL;
-				$nobots .= "const nobots = document.getElementById( 'mai-nobots' );" . PHP_EOL;
-				$nobots .= $this->inject . PHP_EOL;
-				$nobots .= '}' . PHP_EOL;
-				$element = $dom->createElement( 'script', $nobots );
-				$element->setAttribute( 'id', 'mai-nobots' );
-				$this->scripts = array_merge( [ $element ], $this->scripts );
-			}
-
-			if ( $this->scripts ) {
-				// Reverse, because insertBefore will put them in opposite order.
-				$this->scripts = array_reverse( $this->scripts );
-
-				foreach ( $this->scripts as $object ) {
-					/**
-					 * Moves script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
-					 * No need to `removeChild` first, since this moves the actual node.
-					 *
-					 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
-					 */
-					$container->parentNode->insertBefore( $object, $container->nextSibling );
-				}
-			}
-		}
-
-		if ( $this->nobots ) {
-			foreach ( $this->nobots as $script ) {
-				// Remove node since this will be dynamically added with PHP now.
-				$script->parentNode->removeChild( $script );
-			}
-		}
+		// Remove nodes.
+		$this->remove_nodes();
 
 		// Save HTML.
 		$buffer = $dom->saveHTML();
 
 		return $buffer;
+	}
+
+	/**
+	 * Moves script(s) after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
+	 * No need to `removeChild` first, since this moves the actual node.
+	 *
+	 * @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
+	 *
+	 * @param DOMNode    $node    The node.
+	 * @param DOMElement $element The element to insert the node after.
+	 *
+	 * @return void
+	 */
+	function insertafter( $node, $element ) {
+		$element->parentNode->insertBefore( $node, $element->nextSibling );
 	}
 
 	/**
@@ -433,15 +278,34 @@ class Mai_Performance_Enhancer {
 	 * @return void
 	 */
 	function handle_scripts( $scripts ) {
+		// Default scripts to keep.
+		$skips = [
+			'cache',
+			'plugins/autoptimize',
+			'plugins/mai-engine',
+			'plugins/wp-rocket',
+		];
+
+		// Filter scripts to skip or remove.
+		$skips  = apply_filters( 'mai_performance_enhancer_skip_scripts', $skips );
+		$remove = apply_filters( 'mai_performance_enhancer_remove_scripts', [] );
+
+		// Sanitize.
+		$skips  = array_unique( array_map( 'esc_attr', $skips ) );
+		$remove = array_unique( array_map( 'esc_attr', $remove ) );
+
 		foreach ( $scripts as $node ) {
 			// Skip if parent is noscript tag.
 			if ( 'noscript' === $node->parentNode->nodeName ) {
 				continue;
 			}
 
-			$type = (string) $node->getAttribute( 'type' );
-			$src  = (string) $node->getAttribute( 'src' );
+			// Get attributes.
+			$type  = (string) $node->getAttribute( 'type' );
+			$src   = (string) $node->getAttribute( 'src' );
+			$inner = trim( (string) $node->textContent );
 
+			// Bail if this is JSON.
 			if ( $type && 'application/ld+json' === $type ) {
 				continue;
 			}
@@ -455,14 +319,14 @@ class Mai_Performance_Enhancer {
 					continue;
 				}
 
-				$skips = [
-					'plugins/autoptimize',
-					'plugins/mai-engine',
-					'plugins/wp-rocket',
-				];
-
 				// Skip scripts we don't want to move.
-				if ( $this->has_string( $skips, $src ) ) {
+				if ( $skips && $this->has_string( $skips, $src ) ) {
+					continue;
+				}
+
+				// Skip and remove scripts.
+				if ( $remove && $this->has_string( $remove, $src ) ) {
+					$this->remove[] = $node;
 					continue;
 				}
 
@@ -471,13 +335,16 @@ class Mai_Performance_Enhancer {
 			}
 			// No source.
 			else {
-				$inner = trim( (string) $node->textContent );
-				$skips = [
-					'no-js',
-				];
+				$skips = array_merge( [ 'no-js' ], $skips );
 
 				// Skip if inline script has text string.
 				if ( $inner && $this->has_string( $skips, $inner ) ) {
+					continue;
+				}
+
+				// Skip and remove scripts.
+				if ( $remove && $this->has_string( $remove, $inner ) ) {
+					$this->remove[] = $node;
 					continue;
 				}
 			}
@@ -513,6 +380,10 @@ class Mai_Performance_Enhancer {
 			'pinterest.com',
 		];
 
+		// Filter scripts to hide from bots.
+		$human = apply_filters( 'mai_performance_enhancer_human_scripts', $human );
+		$human = array_unique( array_map( 'esc_attr', $human ) );
+
 		$inner = trim( (string) $node->textContent );
 
 		// This was breaking. Need to check inside script only.
@@ -536,8 +407,8 @@ class Mai_Performance_Enhancer {
 			// Insert script.
 			$this->inject .= sprintf( 'nobots.parentNode.insertBefore( %s, nobots );', $var );
 
-			// Add to nobots array.
-			$this->nobots[] = $node;
+			// Add to remove array.
+			$this->remove[] = $node;
 
 			// Increment counter.
 			$i++;
@@ -546,6 +417,261 @@ class Mai_Performance_Enhancer {
 		}
 
 		return $node;
+	}
+
+	/**
+	 * Adds preload headers for early hints.
+	 * This must be enabled in Cloudflare to do anything.
+	 *
+	 * TODO:
+	 * Currently does not do anything for images
+	 * until we figure out how to handle srcset and sizes attributes.
+	 *
+	 * @param DOMDocument $dom
+	 *
+	 * @return void
+	 */
+	function do_preload_headers( $dom ) {
+		$xpath   = new DOMXPath( $dom );
+		$preload = $xpath->query( '/html/head/link[@rel="preload"]' );
+
+		foreach ( $preload as $node ) {
+			$href = $node->getAttribute( 'href' );
+			$as   = $node->getAttribute( 'as' );
+
+			// Skip images until we find out how to handle srcset/sizes.
+			if ( 'image' === $as ) {
+				continue;
+			}
+			// if ( 'image' === $as && ! $href ) {
+			// 	$srcset = $node->getAttribute( 'imagesrcset' );
+			// 	$array  = explode( ',', $srcset );
+			// 	$first  = reset( $array );
+			// 	$array  = explode( ' ', $first );
+			// 	$first  = reset( $array );
+			// 	$href   = esc_url( $first );
+			// }
+
+			if ( ! $href && ! $as ) {
+				continue;
+			}
+
+			// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
+			$header = "Link: <{$href}>; rel=preload; as={$as}; crossorigin";
+			header( $header, false );
+		}
+	}
+
+	/**
+	 * Adds preconnect and dns-prefetch links to the head.
+	 *
+	 * @param DOMDocument $dom
+	 *
+	 * @return void
+	 */
+	function do_preconnects( $dom ) {
+		$links       = [];
+		$preconnect  = [];
+		$prefetch    = [];
+		$links       = [];
+		$preconnects = [
+			'quantcast' => [
+				'https://cmp.quantcast.com',
+				'https://secure.quantserve.com',
+			],
+			'google-analytics' => [
+				'https://www.google-analytics.com',
+			],
+			'googletagmanager' => [
+				'https://www.googletagmanager.com',
+			],
+			'googlesyndication' => [
+				'https://adservice.google.com/',
+				'https://googleads.g.doubleclick.net/',
+				'https://pagead2.googlesyndication.com',
+				'https://securepubads.g.doubleclick.net',
+				'https://tpc.googlesyndication.com/',
+				'https://www.googletagservices.com/',
+			],
+			'complex.com' => [
+				'https://media.complex.com',
+			],
+			'stats.wp' => [
+				'https://s.w.org',
+				'https://stats.wp.com',
+			],
+			'taboola' => [
+				'https://cdn.taboola.com',
+			],
+		];
+
+		// Allow filtering.
+		$preconnects = apply_filters( 'mai_performance_enhancer_preconnects', $preconnects );
+
+		if ( $preconnects ) {
+			foreach ( $preconnects as $key => $srcs ) {
+				if ( ! $this->has_string( $key, $this->sources ) ) {
+					continue;
+				}
+
+				$links[] = $key;
+			}
+
+			$links = array_unique( $links );
+
+			if ( $links ) {
+				foreach ( $links as $key ) {
+					foreach ( $preconnects[ $key ] as $src ) {
+						$atts         = 'googlesyndication' === $key ? 'crossorigin="anonymous" ' : '';
+						$preconnect[] = sprintf( '<link rel="preconnect" href="%s" %s/>%s', $src, $atts, PHP_EOL );
+						// Fallback for Firefox still not supporting preconnect.
+						$prefetch[]   = sprintf( '<link rel="dns-prefetch" href="%s"/>%s', $src, PHP_EOL );
+					}
+				}
+			}
+
+			$array = array_merge( $preconnect, $prefetch );
+
+			if ( $array ) {
+				$metas    = $dom->getElementsByTagName( 'meta' );
+				$meta     = $metas->item(0);
+				$string   = PHP_EOL . trim( implode( '', $array ) );
+				$fragment = $dom->createDocumentFragment();
+				$fragment->appendXML( $string );
+				$this->insertafter( $fragment, $meta );
+			}
+		}
+	}
+
+	/**
+	 * Handles moving or removing stylesheets from the head.
+	 *
+	 * @param DOMDocument $dom
+	 *
+	 * @return void
+	 */
+	function handle_styles( $dom ) {
+		$xpath  = new DOMXPath( $dom );
+		$styles = $xpath->query( '/html/head/link[@rel="stylesheet"]' );
+
+		if ( ! $styles->length ) {
+			return;
+		}
+
+		$remove = [
+			'css/classic-themes',
+		];
+
+		// Woo blocks.
+		if ( class_exists( 'WooCommerce' ) ) {
+			$elements = $xpath->query( '//*[starts-with(@data-block-name, "woocommerce/")]' );
+
+			if ( ! $elements->length ) {
+				$remove[] = 'wc-blocks';
+			}
+		}
+
+		// WP Recipe Maker.
+		if ( class_exists( 'WPRM_Recipe_Manager' ) ) {
+			$elements = $xpath->query( '//*[starts-with(@class, "wprm-recipe")]' );
+
+			if ( ! $elements->length ) {
+				$remove[] = 'wp-recipes-maker';
+			}
+		}
+
+		// Stylesheets.
+		$footer = apply_filters( 'mai_performance_enhancer_styles_to_footer', [] );
+		$remove = apply_filters( 'mai_performance_enhancer_styles_to_remove', $remove );
+
+		// Sanitize.
+		$footer = array_unique( array_map( 'esc_attr', $footer ) );
+		$remove = array_unique( array_map( 'esc_attr', $remove ) );
+
+		if ( ! $footer && ! $remove ) {
+			return;
+		}
+
+		foreach ( $styles as $node ) {
+			$href = (string) $node->getAttribute( 'href' );
+
+			if ( ! $href ) {
+				continue;
+			}
+
+			if ( $footer && $this->has_string( $footer, $href ) ) {
+				$this->styles[] = $node;
+			}
+
+
+			if ( $remove && $this->has_string( $remove, $href ) ) {
+				$this->remove[] = $node;
+			}
+		}
+	}
+
+	/**
+	 * Handles moving or removing stylesheets from the head.
+	 *
+	 * @param DOMDocument $dom
+	 *
+	 * @return void
+	 */
+	function handle_injects( $dom ) {
+		// Gets main site-container.
+		$container = $dom->getElementById( 'top' );
+
+		// Bail if no container.
+		if ( ! $container ) {
+			return;
+		}
+
+		// Build bot checker and add injected scripts.
+		if ( $this->inject ) {
+			$nobots  = "window.notBot=(function(){var ua=navigator.userAgent||navigator.vendor||window.opera;var crl='(Googlebot|Googlebot-Mobile|Googlebot-Image|Googlebot-Video|Chrome-Lighthouse|lighthouse|pagespeed|(Google Page Speed Insights)|Bingbot|Applebot|PingdomPageSpeed|GTmetrix|PTST|YLT|Phantomas)';var re=new RegExp(crl,'i');if(re.test(ua)){return false;}else{return true;}})();" . PHP_EOL;
+			$nobots .= 'if ( notBot ) {' . PHP_EOL;
+			$nobots .= "const nobots = document.getElementById( 'mai-nobots' );" . PHP_EOL;
+			$nobots .= $this->inject . PHP_EOL;
+			$nobots .= '}' . PHP_EOL;
+			$element = $dom->createElement( 'script', $nobots );
+			$element->setAttribute( 'id', 'mai-nobots' );
+			$this->scripts = array_merge( [ $element ], $this->scripts );
+		}
+
+		// Insert scripts.
+		if ( $this->scripts ) {
+			// Reverse, because insertBefore will put them in opposite order.
+			$this->scripts = array_reverse( $this->scripts );
+
+			foreach ( $this->scripts as $node ) {
+				$this->insertafter( $node, $container );
+			}
+		}
+
+		// Insert styles.
+		if ( $this->styles ) {
+			// Reverse, because insertBefore will put them in opposite order.
+			$this->styles = array_reverse( $this->styles );
+
+			foreach ( $this->styles as $node ) {
+				$this->insertafter( $node, $container );
+			}
+		}
+	}
+
+	/**
+	 * Removes nodes.
+	 *
+	 * @return void
+	 */
+	function remove_nodes() {
+		if ( ! $this->remove ) {
+			return;
+		}
+
+		foreach ( $this->remove as $node ) {
+			$node->parentNode->removeChild( $node );
+		}
 	}
 
 	/**
@@ -597,70 +723,6 @@ class Mai_Performance_Enhancer {
 		}
 
 		return false;
-	}
-
-	/**
-	 * Check if a string contains at least one specified string.
-	 * Taken from Mai Engine `mai_has_string()`.
-	 *
-	 * @since TBD
-	 *
-	 * @param string|array $needle   String or array of strings to check for.
-	 * @param string|array $haystack String or array to check in.
-	 *
-	 * @return string
-	 */
-	function has_string_og( $needle, $haystack ) {
-		if ( is_array( $needle ) ) {
-			foreach ( $needle as $string ) {
-				if ( $this->check_string( $string, $haystack ) ) {
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		return $this->check_string( $needle, $haystack );
-	}
-
-	/**
-	 * Checks string in haystack.
-	 *
-	 * @since TBD
-	 *
-	 * @param string       $needle   String to check for.
-	 * @param string|array $haystack String or array of strings to check in.
-	 *
-	 * @return void
-	 */
-	function check_string_og( $needle, $haystack ) {
-		if ( is_array( $haystack ) ) {
-			foreach ( $haystack as $stack ) {
-				if ( false !== strpos( $stack, $needle ) ) {
-					return true;
-				}
-			}
-		}
-
-		return false !== strpos( $haystack, $needle );
-	}
-
-	/**
-	 * Checks if a string starts with another string.
-	 *
-	 * @param string $haystack The full string.
-	 * @param string $needle   The string to check.
-	 *
-	 * @return bool
-	 */
-	function string_starts_with( $haystack, $needle ) {
-		// PHP 8 has this already.
-		if ( function_exists( 'str_starts_with' ) ) {
-			return str_starts_with( $haystack, $needle );
-		}
-
-		return '' !== (string) $needle && strncmp( $haystack, $needle, 0 === strlen( $needle ) );
 	}
 
 	/**
@@ -836,6 +898,73 @@ class Mai_Performance_Enhancer {
 			$fragment->appendXML( $this->data['scripts'] );
 
 			$this->scripts[] = $fragment;
+		}
+	}
+
+	/**
+	 * Adds lazy loading to images in the `<main>` content.
+	 *
+	 * @param DOMNode $main
+	 *
+	 * @return void
+	 */
+	function do_lazy_images( $main ) {
+		$images = $main->getElementsByTagName( 'img' );
+
+		if ( ! $images->length ) {
+			return;
+		}
+
+		static $first = true;
+
+		foreach ( $images as $node ) {
+			// Skip the first, likely above the fold.
+			if ( $first ) {
+				continue;
+			}
+
+			$first = false;
+
+			// Skip if loading attribute already exists.
+			if ( $node->getAttribute( 'loading' ) ) {
+				continue;
+			}
+
+			// Skip if no-lazy class.
+			if ( in_array( 'no-lazy', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
+				continue;
+			}
+
+			$node->setAttribute( 'loading', 'lazy' );
+		}
+	}
+
+	/**
+	 * Adds lazy loading to iframes in the `<main>` content.
+	 *
+	 * @param DOMNode $main
+	 *
+	 * @return void
+	 */
+	function do_lazy_iframes( $main ) {
+		$iframes = $main->getElementsByTagName( 'iframes' );
+
+		if ( ! $iframes->length ) {
+			return;
+		}
+
+		foreach ( $iframes as $node ) {
+			// Skip if loading attribute already exists.
+			if ( $node->getAttribute( 'loading' ) ) {
+				continue;
+			}
+
+			// Skip if no-lazy class.
+			if ( in_array( 'no-lazy', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
+				continue;
+			}
+
+			$node->setAttribute( 'loading', 'lazy' );
 		}
 	}
 
