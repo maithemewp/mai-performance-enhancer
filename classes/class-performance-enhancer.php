@@ -271,9 +271,11 @@ class Mai_Performance_Enhancer {
 			'plugins/wp-rocket',
 		];
 
+		$remove = [];
+
 		// Filter scripts to skip or remove.
 		$skips  = apply_filters( 'mai_performance_enhancer_skip_scripts', $skips );
-		$remove = apply_filters( 'mai_performance_enhancer_remove_scripts', [] );
+		$remove = apply_filters( 'mai_performance_enhancer_remove_scripts', $remove );
 
 		// Sanitize.
 		$skips  = array_unique( array_map( 'esc_attr', $skips ) );
@@ -474,16 +476,22 @@ class Mai_Performance_Enhancer {
 				'https://www.googletagmanager.com',
 			],
 			'googlesyndication' => [
-				'https://adservice.google.com/',
-				'https://googleads.g.doubleclick.net/',
+				'https://adservice.google.com',
+				'https://googleads.g.doubleclick.net',
 				'https://pagead2.googlesyndication.com',
 				'https://securepubads.g.doubleclick.net',
-				'https://tpc.googlesyndication.com/',
-				'https://www.googletagservices.com/',
+				'https://tpc.googlesyndication.com',
+				'https://www.googletagservices.com',
 			],
 			'complex.com' => [
 				'https://media.complex.com',
 			],
+			// OptinMonster.
+			'omappapi.com' => [
+				'https://a.omappapi.com',
+				'https://api.omappapi.com',
+			],
+			// Jetpack.
 			'stats.wp' => [
 				'https://s.w.org',
 				'https://stats.wp.com',
