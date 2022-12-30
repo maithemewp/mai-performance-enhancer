@@ -486,6 +486,9 @@ class Mai_Performance_Enhancer {
 			'complex.com' => [
 				'https://media.complex.com',
 			],
+			'convertkit.com' => [
+				'https://f.convertkit.com',
+			],
 			// OptinMonster.
 			'omappapi.com' => [
 				'https://a.omappapi.com',
