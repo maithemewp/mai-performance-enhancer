@@ -121,9 +121,6 @@ class Mai_Performance_Enhancer {
 		// Sets caching headers.
 		$this->do_cache_headers();
 
-		// Tidy.
-		$buffer = $this->do_tidy( $buffer );
-
 		// Gravatar.
 		$buffer = $this->do_gravatar( $buffer );
 
@@ -174,11 +171,11 @@ class Mai_Performance_Enhancer {
 			$body_scripts = $body->getElementsByTagName( 'script' );
 
 			if ( $head_scripts->length ) {
-				$this->handle_scripts( $head_scripts );
+				$this->handle_scripts( $head_scripts, true );
 			}
 
 			if ( $body_scripts->length ) {
-				$this->handle_scripts( $body_scripts );
+				$this->handle_scripts( $body_scripts, false );
 			}
 		}
 
@@ -203,6 +200,9 @@ class Mai_Performance_Enhancer {
 
 		// Save HTML.
 		$buffer = $dom->saveHTML();
+
+		// Tidy.
+		$buffer = $this->do_tidy( $buffer );
 
 		return $buffer;
 	}
@@ -259,10 +259,11 @@ class Mai_Performance_Enhancer {
 	 * Handles scripts before closing body tag.
 	 *
 	 * @param array $scripts Array of script element nodes.
+	 * @param bool  $head    If script comes from the `<head>`.
 	 *
 	 * @return void
 	 */
-	function handle_scripts( $scripts ) {
+	function handle_scripts( $scripts, $head ) {
 		// Default scripts to keep.
 		$skips = [
 			'cache',
@@ -270,6 +271,11 @@ class Mai_Performance_Enhancer {
 			'plugins/mai-engine',
 			'plugins/wp-rocket',
 		];
+
+		if ( ! $head ) {
+			$skips[] = 'convertkit'; // Converkit
+			$skips[] ='.ck.page'; // Converkit
+		}
 
 		$remove = [];
 
@@ -485,6 +491,9 @@ class Mai_Performance_Enhancer {
 			],
 			'complex.com' => [
 				'https://media.complex.com',
+			],
+			'adthrive' => [
+				'https://ads.adthrive.com',
 			],
 			'convertkit.com' => [
 				'https://f.convertkit.com',
