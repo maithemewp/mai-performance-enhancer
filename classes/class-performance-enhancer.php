@@ -32,7 +32,7 @@ class Mai_Performance_Enhancer {
 				'ttl_homepage'     => '60', // in seconds.
 				'ttl_inner'        => '180', // in seconds.
 				'preload_header'   => true,
-				'tidy'             => false, // Disable this for now.
+				'tidy'             => true,
 				'lazy_images'      => true,
 				'lazy_iframes'     => true,
 				'move_scripts'     => true,
@@ -191,6 +191,7 @@ class Mai_Performance_Enhancer {
 
 		// Handle styles.
 		$this->handle_styles( $dom );
+		$this->handle_inline_styles( $dom );
 
 		// Handle injects.
 		$this->handle_injects( $dom );
@@ -328,6 +329,12 @@ class Mai_Performance_Enhancer {
 			}
 			// No source.
 			else {
+				// Minify.
+				if ( $inner ) {
+					$node->textContent = $this->minify_js( $inner );
+				}
+
+				// Add Mai/Woo no-js to skips.
 				$skips = array_merge( [ 'no-js' ], $skips );
 
 				// Skip if inline script has text string.
@@ -619,6 +626,31 @@ class Mai_Performance_Enhancer {
 	}
 
 	/**
+	 * Minifies inline CSS.
+	 *
+	 * @param DOMDocument $dom
+	 *
+	 * @return void
+	 */
+	function handle_inline_styles( $dom ) {
+		$styles = $dom->getElementsByTagName( 'style' );
+
+		if ( ! $styles->length ) {
+			return;
+		}
+
+		foreach ( $styles as $node ) {
+			$inner = $node->textContent;
+
+			if ( ! $inner ) {
+				return;
+			}
+
+			$node->textContent = $this->minify_css( $node->textContent );
+		}
+	}
+
+	/**
 	 * Handles moving or removing stylesheets from the head.
 	 *
 	 * @param DOMDocument $dom
@@ -678,6 +710,99 @@ class Mai_Performance_Enhancer {
 	}
 
 	/**
+	 * Minify inline CSS.
+	 *
+	 * @link https://gist.github.com/Rodrigo54/93169db48194d470188f
+	 *
+	 * @param string $input
+	 *
+	 * @return string
+	 */
+	function minify_css($input) {
+		if ( '' === trim( $input ) ) {
+			return $input;
+		}
+
+		return preg_replace(
+			[
+				// Remove comment(s)
+				'#("(?:[^"\\\]++|\\\.)*+"|\'(?:[^\'\\\\]++|\\\.)*+\')|\/\*(?!\!)(?>.*?\*\/)|^\s*|\s*$#s',
+				// Remove unused white-space(s)
+				'#("(?:[^"\\\]++|\\\.)*+"|\'(?:[^\'\\\\]++|\\\.)*+\'|\/\*(?>.*?\*\/))|\s*+;\s*+(})\s*+|\s*+([*$~^|]?+=|[{};,>~]|\s(?![0-9\.])|!important\b)\s*+|([[(:])\s++|\s++([])])|\s++(:)\s*+(?!(?>[^{}"\']++|"(?:[^"\\\]++|\\\.)*+"|\'(?:[^\'\\\\]++|\\\.)*+\')*+{)|^\s++|\s++\z|(\s)\s+#si',
+				// Replace `0(cm|em|ex|in|mm|pc|pt|px|vh|vw|%)` with `0`
+				'#(?<=[\s:])(0)(cm|em|ex|in|mm|pc|pt|px|vh|vw|%)#si',
+				// Replace `:0 0 0 0` with `:0`
+				'#:(0\s+0|0\s+0\s+0\s+0)(?=[;\}]|\!important)#i',
+				// Replace `background-position:0` with `background-position:0 0`
+				'#(background-position):0(?=[;\}])#si',
+				// Replace `0.6` with `.6`, but only when preceded by `:`, `,`, `-` or a white-space
+				'#(?<=[\s:,\-])0+\.(\d+)#s',
+				// Minify string value
+				'#(\/\*(?>.*?\*\/))|(?<!content\:)([\'"])([a-z_][a-z0-9\-_]*?)\2(?=[\s\{\}\];,])#si',
+				'#(\/\*(?>.*?\*\/))|(\burl\()([\'"])([^\s]+?)\3(\))#si',
+				// Minify HEX color code
+				'#(?<=[\s:,\-]\#)([a-f0-6]+)\1([a-f0-6]+)\2([a-f0-6]+)\3#i',
+				// Replace `(border|outline):none` with `(border|outline):0`
+				'#(?<=[\{;])(border|outline):none(?=[;\}\!])#',
+				// Remove empty selector(s)
+				'#(\/\*(?>.*?\*\/))|(^|[\{\}])(?:[^\s\{\}]+)\{\}#s'
+			],
+			[
+				'$1',
+				'$1$2$3$4$5$6$7',
+				'$1',
+				':0',
+				'$1:0 0',
+				'.$1',
+				'$1$3',
+				'$1$2$4$5',
+				'$1$2$3',
+				'$1:0',
+				'$1$2'
+			],
+			$input
+		);
+	}
+
+	/**
+	 * Minify inline JS.
+	 *
+	 * @link https://gist.github.com/Rodrigo54/93169db48194d470188f
+	 *
+	 * @param string $input
+	 *
+	 * @return string
+	 */
+	function minify_js( $input ) {
+		if ( '' === trim( $input ) ) {
+			return $input;
+		}
+
+		return preg_replace(
+			[
+				// Remove comment(s).
+				'#\s*("(?:[^"\\\]++|\\\.)*+"|\'(?:[^\'\\\\]++|\\\.)*+\')\s*|\s*\/\*(?!\!|@cc_on)(?>[\s\S]*?\*\/)\s*|\s*(?<![\:\=])\/\/.*(?=[\n\r]|$)|^\s*|\s*$#',
+				// Remove white-space(s) outside the string and regex.
+				'#("(?:[^"\\\]++|\\\.)*+"|\'(?:[^\'\\\\]++|\\\.)*+\'|\/\*(?>.*?\*\/)|\/(?!\/)[^\n\r]*?\/(?=[\s.,;]|[gimuy]|$))|\s*([!%&*\(\)\-=+\[\]\{\}|;:,.<>?\/])\s*#s',
+				// Remove the last semicolon.
+				'#;+\}#',
+				// Minify object attribute(s) except JSON attribute(s). From `{'foo':'bar'}` to `{foo:'bar'}`.
+				'#([\{,])([\'])(\d+|[a-z_][a-z0-9_]*)\2(?=\:)#i',
+				// --ibid. From `foo['bar']` to `foo.bar`.
+				'#([a-z0-9_\)\]])\[([\'"])([a-z_][a-z0-9_]*)\2\]#i'
+			],
+			[
+				'$1',
+				'$1$2',
+				'}',
+				'$1$3',
+				'$1.$3'
+			],
+			$input
+		);
+	}
+
+	/**
 	 * Removes nodes.
 	 *
 	 * @return void
@@ -706,67 +831,13 @@ class Mai_Performance_Enhancer {
 			return $buffer;
 		}
 
-		if ( ! class_exists( 'tidy' ) || isset( $_GET['notidy'] ) ) {
-			return $buffer;
-		}
-
-		// Tidy Configuration Options
-		$config = [
-			'alt-text'                    => 'Image',
-			'break-before-br'             => 1,
-			'clean'                       => 1,
-			'doctype'                     => 'html5',
-			'drop-empty-elements'         => 0,
-			'drop-proprietary-attributes' => 0,
-			'hide-comments'               => 0,
-			'indent-cdata'                => 0,
-			'indent-spaces'               => 2,
-			'indent'                      => 1,
-			'merge-divs'                  => 0,
-			'merge-spans'                 => 0,
-			'new-blocklevel-tags'         => 'fb:like, fb:send, fb:comments, fb:activity, fb:recommendations, fb:like-box, fb:login-button, fb:facepile, fb:live-stream, fb:fan, fb:pile, article, aside, bdi, command, details, summary, figure, figcaption, footer, header, hgroup, mark, meter, nav, picture, progress, ruby, rt, rp, section, span, time, wbr, audio, video, source, embed, track, canvas, datalist, keygen, output, amp-ad, amp-analytics, ampstyle, amp-img, amp-instagram, amp-twitter, amp-youtube, amp-iframe,ad-img, glomex-player',
-			'new-empty-tags'              => 'a,b,li,strong,span,i,div',
-			'output-xhtml'                => 1,
-			'show-body-only'              => 0,
-			'wrap'                        => 0,
-		];
-
-		$tidy = new tidy();
-		$tidy->parseString( $buffer, $config, 'utf8' );
-		$tidy->cleanRepair();
-
-		$tidy   = $tidy . "\n<!-- HTML Tidy engine enabled -->";
-		$buffer = $tidy;
-
-		// CDATA cleanups.
-		$find = [
-			'/*<![CDATA[*/',
-			'/*//]]>*/',
-			'//<![CDATA[',
-			'//]]>',
-			'<![CDATA[',
-			']]>',
-			'/**/',
-			'/* */'
-		];
-		$buffer = str_replace( $find, '', $buffer );
-
-		// HTML5 Mode.
-		$buffer = preg_replace(
+		$indenter = new \Gajus\Dindent\Indenter(
 			[
-				"#<!DOCTYPE(.+?)>#s",
-				"# xmlns=\"(.+?)\"#s",
-				"# (xml|xmlns)\:(.+?)=\"(.+?)\"#s"
-			],
-			[
-			"<!doctype html>",
-			"",
-			""
-			],
-			$buffer
+				'indentation_character' => '  ',
+			]
 		);
 
-		return $buffer;
+		return $indenter->indent( $buffer );
 	}
 
 	/**
@@ -777,7 +848,7 @@ class Mai_Performance_Enhancer {
 	 * @return string
 	 */
 	function do_gravatar( $buffer ) {
-		// For Gravatar
+		// For Gravatar.
 		$buffer = str_ireplace(
 			['http://0.gravatar.com', 'http://1.gravatar.com', 'http://2.gravatar.com', 'http://3.gravatar.com', 'http://4.gravatar.com'],
 			['https://0.gravatar.com', 'https://1.gravatar.com', 'https://2.gravatar.com', 'https://3.gravatar.com', 'https://4.gravatar.com'],
@@ -1000,57 +1071,6 @@ class Mai_Performance_Enhancer {
 	 */
 	function insertafter( $node, $element ) {
 		$element->parentNode->insertBefore( $node, $element->nextSibling );
-	}
-
-	/**
-	 * Pretty Printing
-	 *
-	 * @author  Chris Bratlien
-	 *
-	 * @param   mixed $obj
-	 * @param   string $label
-	 *
-	 * @return  null
-	 */
-	function pretty_print( $obj, $label = '' ) {
-		$data = json_encode( print_r( $obj,true ) );
-		?>
-		<style type="text/css">
-			#maiLogger {
-				position: absolute;
-				top: 30px;
-				right: 0px;
-				border-left: 4px solid #bbb;
-				padding: 6px;
-				background: white;
-				color: #444;
-				z-index: 999;
-				font-size: 1.2rem;
-				width: 40vw;
-				height: calc( 100vh - 30px );
-				overflow: scroll;
-			}
-		</style>
-		<script type="text/javascript">
-			var doStuff = function() {
-				var obj    = <?php echo $data; ?>;
-				var logger = document.getElementById('maiLogger');
-				if ( ! logger ) {
-					logger = document.createElement('div');
-					logger.id = 'maiLogger';
-					document.body.appendChild(logger);
-				}
-				////console.log(obj);
-				var pre = document.createElement('pre');
-				var h2  = document.createElement('h2');
-				pre.innerHTML = obj;
-				h2.innerHTML  = '<?php echo addslashes($label); ?>';
-				logger.appendChild(h2);
-				logger.appendChild(pre);
-			};
-			window.addEventListener( "DOMContentLoaded", doStuff, false );
-		</script>
-		<?php
 	}
 }
 
