@@ -750,7 +750,7 @@ class Mai_Performance_Enhancer {
 			[
 				'$1',
 				'$1$2$3$4$5$6$7',
-				'$1',
+				// '$1',
 				':0',
 				'$1:0 0',
 				'.$1',
@@ -820,7 +820,7 @@ class Mai_Performance_Enhancer {
 	/**
 	 * Gets tidy HTML.
 	 *
-	 * @link Tidy (v5.6.0 - https://api.html-tidy.org/tidy/quickref_5.6.0.html)
+	 * @link https://github.com/gajus/dindent
 	 *
 	 * @param string $buffer The existing HTML buffer.
 	 *
