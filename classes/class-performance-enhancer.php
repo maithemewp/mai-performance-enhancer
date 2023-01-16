@@ -374,11 +374,14 @@ class Mai_Performance_Enhancer {
 		$human = [
 			'.adthrive',
 			'advanced-ads',
+			'affiliate-wp',
 			'amazon-adsystem.com',
 			'connect.facebook.net',
+			'convertflow',
 			'googleadservices.com',
 			'googletagmanager.com',
 			'pinterest.com',
+			'slicewp',
 		];
 
 		// Filter scripts to hide from bots.
@@ -501,6 +504,9 @@ class Mai_Performance_Enhancer {
 			],
 			'adthrive' => [
 				'https://ads.adthrive.com',
+			],
+			'convertflow.com' => [
+				'https://assets.convertflow.com',
 			],
 			'convertkit.com' => [
 				'https://f.convertkit.com',
