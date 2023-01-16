@@ -481,15 +481,23 @@ class Mai_Performance_Enhancer {
 		$prefetch    = [];
 		$links       = [];
 		$preconnects = [
-			'quantcast' => [
-				'https://cmp.quantcast.com',
-				'https://secure.quantserve.com',
+			'adthrive' => [
+				'https://ads.adthrive.com',
+			],
+			'complex.com' => [
+				'https://media.complex.com',
+				'https://c.amazon-adsystem.com',
+				'https://cdn.confiant-integrations.net',
+				'https://micro.rubiconproject.com',
+			],
+			'convertflow.com' => [
+				'https://assets.convertflow.com',
+			],
+			'convertkit.com' => [
+				'https://f.convertkit.com',
 			],
 			'google-analytics' => [
 				'https://www.google-analytics.com',
-			],
-			'googletagmanager' => [
-				'https://www.googletagmanager.com',
 			],
 			'googlesyndication' => [
 				'https://adservice.google.com',
@@ -499,22 +507,17 @@ class Mai_Performance_Enhancer {
 				'https://tpc.googlesyndication.com',
 				'https://www.googletagservices.com',
 			],
-			'complex.com' => [
-				'https://media.complex.com',
-			],
-			'adthrive' => [
-				'https://ads.adthrive.com',
-			],
-			'convertflow.com' => [
-				'https://assets.convertflow.com',
-			],
-			'convertkit.com' => [
-				'https://f.convertkit.com',
+			'googletagmanager' => [
+				'https://www.googletagmanager.com',
 			],
 			// OptinMonster.
 			'omappapi.com' => [
 				'https://a.omappapi.com',
 				'https://api.omappapi.com',
+			],
+			'quantcast' => [
+				'https://cmp.quantcast.com',
+				'https://secure.quantserve.com',
 			],
 			// Jetpack.
 			'stats.wp' => [
