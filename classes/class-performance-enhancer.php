@@ -319,6 +319,11 @@ class Mai_Performance_Enhancer {
 					continue;
 				}
 
+				// Testing showed removing async showed better performance.
+				$node->removeAttribute( 'async' );
+				$node->removeAttribute( 'defer' );
+				$node->normalize();
+
 				// Add to sources.
 				$this->sources[] = $src;
 			}
