@@ -374,14 +374,28 @@ class Mai_Performance_Enhancer {
 		$human = [
 			'.adthrive',
 			'advanced-ads',
+			'adroll.com',
+			'ads-twitter.com',
 			'affiliate-wp',
 			'amazon-adsystem.com',
+			'bing.com',
 			'connect.facebook.net',
 			'convertflow',
+			'complex.com',
+			'facebook.net',
+			// 'google-analytics.com',
 			'googleadservices.com',
+			'googleoptimize.com',
+			'googlesyndication',
 			'googletagmanager.com',
+			'hotjar.com',
+			'klaviyo.com',
+			'omappapi.com',
 			'pinterest.com',
+			'quantcast',
 			'slicewp',
+			'stats.wp',
+			'taboola.com',
 		];
 
 		// Filter scripts to hide from bots.
@@ -481,8 +495,20 @@ class Mai_Performance_Enhancer {
 		$prefetch    = [];
 		$links       = [];
 		$preconnects = [
+			'ads-twitter.com' => [
+				'https://static.ads-twitter.com',
+			],
+			'adroll.com' => [
+				'https://s.adroll.com',
+			],
 			'adthrive' => [
 				'https://ads.adthrive.com',
+			],
+			'bing.com' => [
+				'https://bat.bing.com',
+			],
+			'cdnjs.cloudflare.com' => [
+				'https://cdnjs.cloudflare.com',
 			],
 			'complex.com' => [
 				'https://media.complex.com',
@@ -491,13 +517,21 @@ class Mai_Performance_Enhancer {
 				'https://micro.rubiconproject.com',
 			],
 			'convertflow.com' => [
+				'https://js.convertflow.co',
+				'https://app.convertflow.co',
 				'https://assets.convertflow.com',
 			],
 			'convertkit.com' => [
 				'https://f.convertkit.com',
 			],
+			'facebook.net' => [
+				'https://connect.facebook.net',
+			],
 			'google-analytics' => [
 				'https://www.google-analytics.com',
+			],
+			'googleoptimize' => [
+				'https://www.googleoptimize.com',
 			],
 			'googlesyndication' => [
 				'https://adservice.google.com',
@@ -509,6 +543,15 @@ class Mai_Performance_Enhancer {
 			],
 			'googletagmanager' => [
 				'https://www.googletagmanager.com',
+			],
+			'hotjar.com' => [
+				'https://script.hotjar.com',
+			],
+			'klaviyo.com/' => [
+				'https://www.klaviyo.com',
+				'https://a.klaviyo.com',
+				'https://static.klaviyo.com',
+				'https://static-tracking.klaviyo.com',
 			],
 			// OptinMonster.
 			'omappapi.com' => [
@@ -524,8 +567,11 @@ class Mai_Performance_Enhancer {
 				'https://s.w.org',
 				'https://stats.wp.com',
 			],
-			'taboola' => [
+			'taboola.com' => [
 				'https://cdn.taboola.com',
+			],
+			'twitter.com' => [
+				'https://platform.twitter.com',
 			],
 		];
 
