@@ -383,9 +383,9 @@ class Mai_Performance_Enhancer {
 			'convertflow',
 			'complex.com',
 			'facebook.net',
-			// 'google-analytics.com',
+			'google-analytics.com',
 			'googleadservices.com',
-			'googleoptimize.com',
+			// 'googleoptimize.com',
 			'googlesyndication',
 			'googletagmanager.com',
 			'hotjar.com',
@@ -530,9 +530,9 @@ class Mai_Performance_Enhancer {
 			'google-analytics' => [
 				'https://www.google-analytics.com',
 			],
-			'googleoptimize' => [
-				'https://www.googleoptimize.com',
-			],
+			// 'googleoptimize' => [
+			// 	'https://www.googleoptimize.com',
+			// ],
 			'googlesyndication' => [
 				'https://adservice.google.com',
 				'https://googleads.g.doubleclick.net',
