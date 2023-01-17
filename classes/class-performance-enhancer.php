@@ -383,7 +383,7 @@ class Mai_Performance_Enhancer {
 			'convertflow',
 			'complex.com',
 			'facebook.net',
-			// 'google-analytics.com',
+			'google-analytics.com',
 			'googleadservices.com',
 			// 'googleoptimize.com',
 			'googlesyndication',
