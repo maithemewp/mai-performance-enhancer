@@ -271,6 +271,7 @@ class Mai_Performance_Enhancer {
 		if ( ! $head ) {
 			$skips[] = 'convertkit'; // Converkit
 			$skips[] = '.ck.page'; // Converkit
+			$skips[] = 'surveymonkey';
 		}
 
 		$remove = [];
