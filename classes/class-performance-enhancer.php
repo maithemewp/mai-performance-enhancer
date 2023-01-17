@@ -271,6 +271,7 @@ class Mai_Performance_Enhancer {
 		if ( ! $head ) {
 			$skips[] = 'convertkit'; // Converkit
 			$skips[] = '.ck.page'; // Converkit
+			$skips[] = 'surveymonkey';
 		}
 
 		$remove = [];
@@ -388,6 +389,7 @@ class Mai_Performance_Enhancer {
 			// 'googleoptimize.com',
 			'googlesyndication',
 			'googletagmanager.com',
+			'gstatic.com',
 			'hotjar.com',
 			'klaviyo.com',
 			'omappapi.com',
@@ -543,6 +545,9 @@ class Mai_Performance_Enhancer {
 			],
 			'googletagmanager' => [
 				'https://www.googletagmanager.com',
+			],
+			'gstatic.com' => [
+				'https://www.gstatic.com',
 			],
 			'hotjar.com' => [
 				'https://script.hotjar.com',
