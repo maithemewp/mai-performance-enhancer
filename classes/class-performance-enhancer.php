@@ -32,7 +32,6 @@ class Mai_Performance_Enhancer {
 				'ttl_homepage'     => '60', // in seconds.
 				'ttl_inner'        => '180', // in seconds.
 				'preload_header'   => true,
-				'tidy'             => true,
 				'lazy_images'      => true,
 				'lazy_iframes'     => true,
 				'move_scripts'     => true,
@@ -52,7 +51,6 @@ class Mai_Performance_Enhancer {
 		$this->settings['ttl_homepage']     = absint( $this->settings['ttl_homepage'] );
 		$this->settings['ttl_inner']        = absint( $this->settings['ttl_inner'] );
 		$this->settings['preload_header']   = rest_sanitize_boolean( $this->settings['preload_header'] );
-		$this->settings['tidy']             = rest_sanitize_boolean( $this->settings['tidy'] );
 		$this->settings['lazy_images']      = rest_sanitize_boolean( $this->settings['lazy_images'] );
 		$this->settings['lazy_iframes']     = rest_sanitize_boolean( $this->settings['lazy_iframes'] );
 		$this->settings['move_scripts']     = rest_sanitize_boolean( $this->settings['move_scripts'] );
@@ -200,10 +198,7 @@ class Mai_Performance_Enhancer {
 		$this->remove_nodes();
 
 		// Save HTML.
-		$buffer = $dom->saveHTML();
-
-		// Tidy.
-		$buffer = $this->do_tidy( $buffer );
+		$buffer = $dom->saveHTML( $dom->documentElement );
 
 		return $buffer;
 	}
@@ -824,29 +819,6 @@ class Mai_Performance_Enhancer {
 		foreach ( $this->remove as $node ) {
 			$node->parentNode->removeChild( $node );
 		}
-	}
-
-	/**
-	 * Gets tidy HTML.
-	 *
-	 * @link https://github.com/gajus/dindent
-	 *
-	 * @param string $buffer The existing HTML buffer.
-	 *
-	 * @return string
-	 */
-	function do_tidy( $buffer ) {
-		if ( ! $this->settings['tidy'] ) {
-			return $buffer;
-		}
-
-		$indenter = new \Gajus\Dindent\Indenter(
-			[
-				'indentation_character' => '  ',
-			]
-		);
-
-		return $indenter->indent( $buffer );
 	}
 
 	/**
