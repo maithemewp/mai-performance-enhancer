@@ -198,7 +198,7 @@ class Mai_Performance_Enhancer {
 		$this->remove_nodes();
 
 		// Save HTML.
-		$buffer = $dom->saveHTML( $dom->documentElement );
+		$buffer = $dom->saveHTML();
 
 		return $buffer;
 	}
