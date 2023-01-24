@@ -198,7 +198,7 @@ class Mai_Performance_Enhancer {
 		$this->remove_nodes();
 
 		// Save HTML.
-		$buffer = $dom->saveHTML( $dom->documentElement );
+		$buffer = $dom->saveHTML();
 
 		return $buffer;
 	}
@@ -395,6 +395,7 @@ class Mai_Performance_Enhancer {
 			'omappapi.com',
 			'pinterest.com',
 			'quantcast',
+			'securepubads',
 			'slicewp',
 			'stats.wp',
 			'taboola.com',
