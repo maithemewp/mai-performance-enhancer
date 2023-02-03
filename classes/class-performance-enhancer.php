@@ -213,10 +213,6 @@ class Mai_Performance_Enhancer {
 			return;
 		}
 
-		if ( is_user_logged_in() ) {
-			return;
-		}
-
 		header_remove( 'Cache-Control' );
 
 		$max_age    = is_front_page() ? $this->settings['ttl_homepage'] : $this->settings['ttl_inner'];
@@ -1119,6 +1115,10 @@ class Mai_Performance_Enhancer {
  * @return void
  */
 add_action( 'after_setup_theme', function() {
+	if ( is_user_logged_in() ) {
+		return;
+	}
+
 	if ( is_admin() ) {
 		return;
 	}
