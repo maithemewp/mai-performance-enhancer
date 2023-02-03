@@ -5,7 +5,7 @@
  * Plugin URI:        https://bizbudding.com/
  * GitHub Plugin URI: maithemewp/mai-performance-enhancer
  * Description:       An aggressive plugin to move all (most) scripts to the footer and do various performance dom cleanup tasks.
- * Version:           0.21.0
+ * Version:           0.22.0
  *
  * Author:            BizBudding
  * Author URI:        https://bizbudding.com
@@ -90,28 +90,8 @@ final class Mai_Performance_Enhancer_Plugin {
 	private function setup_constants() {
 		// Plugin version.
 		if ( ! defined( 'MAI_PERFORMANCE_ENHANCER_VERSION' ) ) {
-			define( 'MAI_PERFORMANCE_ENHANCER_VERSION', '0.21.0' );
+			define( 'MAI_PERFORMANCE_ENHANCER_VERSION', '0.22.0' );
 		}
-
-		// // Plugin Folder Path.
-		// if ( ! defined( 'MAI_PERFORMANCE_ENHANCER_PLUGIN_DIR' ) ) {
-		// 	define( 'MAI_PERFORMANCE_ENHANCER_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-		// }
-
-		// // Plugin Folder URL.
-		// if ( ! defined( 'MAI_PERFORMANCE_ENHANCER_PLUGIN_URL' ) ) {
-		// 	define( 'MAI_PERFORMANCE_ENHANCER_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-		// }
-
-		// // Plugin Root File.
-		// if ( ! defined( 'MAI_PERFORMANCE_ENHANCER_PLUGIN_FILE' ) ) {
-		// 	define( 'MAI_PERFORMANCE_ENHANCER_PLUGIN_FILE', __FILE__ );
-		// }
-
-		// // Plugin Base Name
-		// if ( ! defined( 'MAI_PERFORMANCE_ENHANCER_BASENAME' ) ) {
-		// 	define( 'MAI_PERFORMANCE_ENHANCER_BASENAME', dirname( plugin_basename( __FILE__ ) ) );
-		// }
 	}
 
 	/**
