@@ -256,14 +256,17 @@ class Mai_Performance_Enhancer {
 	 * @return void
 	 */
 	function handle_scripts( $scripts, $head ) {
-		// Default scripts to keep.
-		$skips = [
-			'cache',
+		// Default scripts to skip.
+		$skips = $src_skips = [
 			'plugins/autoptimize',
 			'plugins/mai-engine',
 			'plugins/wp-rocket',
 		];
 
+		// Too general to check inner.
+		$src_skips[] = 'cache';
+
+		// Body skips. These often generate HTML right where the script is.
 		if ( ! $head ) {
 			$skips[] = 'convertkit'; // Converkit
 			$skips[] = '.ck.page'; // Converkit
@@ -296,6 +299,12 @@ class Mai_Performance_Enhancer {
 				continue;
 			}
 
+			// Remove type.
+			if ( $type ) {
+				$node->removeAttribute( 'type' );
+				$node->normalize();
+			}
+
 			// Check sources.
 			if ( $src ) {
 				// Remove node and continue if we already moved this script.
@@ -306,7 +315,7 @@ class Mai_Performance_Enhancer {
 				}
 
 				// Skip scripts we don't want to move.
-				if ( $skips && $this->has_string( $skips, $src ) ) {
+				if ( $src_skips && $this->has_string( $src_skips, $src ) ) {
 					continue;
 				}
 
@@ -349,7 +358,6 @@ class Mai_Performance_Enhancer {
 			// Check if a nobot script.
 			$node = $this->handle_nobots( $node, $src );
 
-			// Add scripts to move later.
 			if ( $node ) {
 				$this->scripts[] = $node;
 			}
@@ -370,7 +378,9 @@ class Mai_Performance_Enhancer {
 
 		$human = [
 			'.adthrive',
+			'advanced_ads',
 			'advanced-ads',
+			'advads_',
 			'adroll.com',
 			'ads-twitter.com',
 			'affiliate-wp',
@@ -401,6 +411,7 @@ class Mai_Performance_Enhancer {
 		$human = apply_filters( 'mai_performance_enhancer_human_scripts', $human );
 		$human = array_unique( array_map( 'esc_attr', $human ) );
 
+		// Set inner text.
 		$inner = trim( (string) $node->textContent );
 
 		// This was breaking. Need to check inside script only.
@@ -418,6 +429,7 @@ class Mai_Performance_Enhancer {
 
 			// If no src and has inner HTML, add it.
 			if ( ! $src && $inner ) {
+				// $this->inject .= sprintf( "%s.innerHTML = %s;", $var, htmlspecialchars( json_encode( $inner ), ENT_QUOTES, 'utf-8' ) );
 				$this->inject .= sprintf( "%s.innerHTML = %s;", $var, json_encode( $inner ) );
 			}
 
@@ -630,6 +642,15 @@ class Mai_Performance_Enhancer {
 			return;
 		}
 
+		// Remove attributes.
+		foreach ( $styles as $node ) {
+			// Remove type.
+			if ( $node->getAttribute( 'type' ) ) {
+				$node->removeAttribute( 'type' );
+				$node->normalize();
+			}
+		}
+
 		$remove = [
 			'css/classic-themes',
 		];
@@ -675,7 +696,6 @@ class Mai_Performance_Enhancer {
 				$this->styles[] = $node;
 			}
 
-
 			if ( $remove && $this->has_string( $remove, $href ) ) {
 				$this->remove[] = $node;
 			}
@@ -708,7 +728,7 @@ class Mai_Performance_Enhancer {
 	}
 
 	/**
-	 * Handles moving or removing stylesheets from the head.
+	 * Handles moving or removing scripts and styles.
 	 *
 	 * @param DOMDocument $dom
 	 *
@@ -742,7 +762,9 @@ class Mai_Performance_Enhancer {
 			$element->setAttribute( 'id', 'mai-nobots' );
 
 			// Add to scripts.
-			$this->scripts = array_merge( [ $element ], $this->scripts );
+			// $this->scripts = array_merge( [ $element ], $this->scripts ); // Add first.
+			// $this->scripts = array_merge( $this->scripts, [ $element ] ); // Add last.
+			$this->scripts[] = $element; // Add last.
 		}
 
 		// Insert scripts.
