@@ -147,19 +147,23 @@ class Mai_Performance_Enhancer {
 			return $buffer;
 		}
 
-		// Get main element.
-		$main = $body->getElementsByTagName( 'main' );
-		$main = $main && $main->item(0) ? $main->item(0) : false;
+		// Handle lazy loading.
+		if ( $this->settings['lazy_images'] || $this->settings['lazy_iframes'] ) {
+			$xpath  = new DOMXPath( $dom );
+			$lazies = $xpath->query( '//main | footer | //div[@id="top"]/following-sibling::*[not(self::script or self::style or self::link)]' );
 
-		if ( $main ) {
-			// Lazy load images.
-			if ( $this->settings['lazy_images'] ) {
-				$this->do_lazy_images( $main );
-			}
+			if ( $lazies->length ) {
+				foreach ( $lazies as $lazy ) {
+					// Lazy load images.
+					if ( $this->settings['lazy_images'] ) {
+						$this->do_lazy_images( $lazy );
+					}
 
-			// Lazy load iframes.
-			if ( $this->settings['lazy_iframes'] ) {
-				$this->do_lazy_iframes( $main );
+					// Lazy load iframes.
+					if ( $this->settings['lazy_iframes'] ) {
+						$this->do_lazy_iframes( $lazy );
+					}
+				}
 			}
 		}
 
@@ -997,28 +1001,34 @@ class Mai_Performance_Enhancer {
 	}
 
 	/**
-	 * Adds lazy loading to images in the `<main>` content.
+	 * Adds lazy loading to images.
 	 *
-	 * @param DOMNode $main
+	 * @param DOMNode $element
 	 *
 	 * @return void
 	 */
-	function do_lazy_images( $main ) {
-		$images = $main->getElementsByTagName( 'img' );
+	function do_lazy_images( $element ) {
+		$images = $element->getElementsByTagName( 'img' );
 
 		if ( ! $images->length ) {
 			return;
 		}
 
-		static $first = true;
+		$main = 'main' === $element->tagName;
+
+		if ( $main ) {
+			static $first = true;
+		}
 
 		foreach ( $images as $node ) {
-			// Skip the first, likely above the fold.
-			if ( $first ) {
-				continue;
-			}
+			if ( $main ) {
+				// Skip the first, likely above the fold.
+				if ( $first ) {
+					continue;
+				}
 
-			$first = false;
+				$first = false;
+			}
 
 			// Skip if loading attribute already exists.
 			if ( $node->getAttribute( 'loading' ) ) {
@@ -1035,14 +1045,14 @@ class Mai_Performance_Enhancer {
 	}
 
 	/**
-	 * Adds lazy loading to iframes in the `<main>` content.
+	 * Adds lazy loading to iframes.
 	 *
-	 * @param DOMNode $main
+	 * @param DOMNode $node
 	 *
 	 * @return void
 	 */
-	function do_lazy_iframes( $main ) {
-		$iframes = $main->getElementsByTagName( 'iframes' );
+	function do_lazy_iframes( $element ) {
+		$iframes = $element->getElementsByTagName( 'iframes' );
 
 		if ( ! $iframes->length ) {
 			return;
