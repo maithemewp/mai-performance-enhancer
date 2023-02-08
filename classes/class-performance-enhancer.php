@@ -261,14 +261,11 @@ class Mai_Performance_Enhancer {
 	 */
 	function handle_scripts( $scripts, $head ) {
 		// Default scripts to skip.
-		$skips = $src_skips = [
+		$skips = [
 			'plugins/autoptimize',
 			'plugins/mai-engine',
 			'plugins/wp-rocket',
 		];
-
-		// Too general to check inner.
-		$src_skips[] = 'cache';
 
 		// Body skips. These often generate HTML right where the script is.
 		if ( ! $head ) {
@@ -286,6 +283,10 @@ class Mai_Performance_Enhancer {
 		// Sanitize.
 		$skips  = array_unique( array_map( 'esc_attr', $skips ) );
 		$remove = array_unique( array_map( 'esc_attr', $remove ) );
+
+		// Too general to check inner.
+		$src_skips   = $skips;
+		$src_skips[] = 'cache';
 
 		foreach ( $scripts as $node ) {
 			// Skip if parent is noscript tag.
