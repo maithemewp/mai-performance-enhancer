@@ -541,9 +541,9 @@ class Mai_Performance_Enhancer {
 			'google-analytics' => [
 				'https://www.google-analytics.com',
 			],
-			// 'googleoptimize' => [
-			// 	'https://www.googleoptimize.com',
-			// ],
+			'googleoptimize' => [
+				'https://www.googleoptimize.com',
+			],
 			'googlesyndication' => [
 				'https://adservice.google.com',
 				'https://googleads.g.doubleclick.net',
