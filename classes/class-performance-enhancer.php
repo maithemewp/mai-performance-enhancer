@@ -1024,7 +1024,7 @@ class Mai_Performance_Enhancer {
 		foreach ( $images as $node ) {
 			if ( $main ) {
 				// Skip the first, likely above the fold.
-				if ( $first ) {
+				if ( $first && in_array( 'entry-image', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
 					continue;
 				}
 
