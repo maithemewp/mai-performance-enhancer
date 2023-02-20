@@ -572,8 +572,7 @@ class Mai_Performance_Enhancer {
 				'https://static.klaviyo.com',
 				'https://static-tracking.klaviyo.com',
 			],
-			// OptinMonster.
-			'omappapi.com' => [
+			'omappapi.com' => [ // OptinMonster.
 				'https://a.omappapi.com',
 				'https://api.omappapi.com',
 			],
@@ -581,8 +580,7 @@ class Mai_Performance_Enhancer {
 				'https://cmp.quantcast.com',
 				'https://secure.quantserve.com',
 			],
-			// Jetpack.
-			'stats.wp' => [
+			'stats.wp' => [ // Jetpack.
 				'https://s.w.org',
 				'https://stats.wp.com',
 			],
