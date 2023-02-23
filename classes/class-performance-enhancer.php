@@ -1013,21 +1013,16 @@ class Mai_Performance_Enhancer {
 			return;
 		}
 
-		$main = 'main' === $element->tagName;
-
-		if ( $main ) {
-			static $first = true;
-		}
+		$first = 'main' === $element->tagName;
 
 		foreach ( $images as $node ) {
-			if ( $first && $main ) {
+			if ( $first ) {
 				$first = false;
 
 				// Skip the first, likely above the fold.
 				if ( in_array( 'entry-image', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
 					continue;
 				}
-
 			}
 
 			// Skip if loading attribute already exists.
