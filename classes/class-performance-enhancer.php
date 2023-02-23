@@ -572,8 +572,7 @@ class Mai_Performance_Enhancer {
 				'https://static.klaviyo.com',
 				'https://static-tracking.klaviyo.com',
 			],
-			// OptinMonster.
-			'omappapi.com' => [
+			'omappapi.com' => [ // OptinMonster.
 				'https://a.omappapi.com',
 				'https://api.omappapi.com',
 			],
@@ -581,8 +580,7 @@ class Mai_Performance_Enhancer {
 				'https://cmp.quantcast.com',
 				'https://secure.quantserve.com',
 			],
-			// Jetpack.
-			'stats.wp' => [
+			'stats.wp' => [ // Jetpack.
 				'https://s.w.org',
 				'https://stats.wp.com',
 			],
@@ -1015,21 +1013,16 @@ class Mai_Performance_Enhancer {
 			return;
 		}
 
-		$main = 'main' === $element->tagName;
-
-		if ( $main ) {
-			static $first = true;
-		}
+		$first = 'main' === $element->tagName;
 
 		foreach ( $images as $node ) {
-			if ( $first && $main ) {
+			if ( $first ) {
 				$first = false;
 
 				// Skip the first, likely above the fold.
 				if ( in_array( 'entry-image', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
 					continue;
 				}
-
 			}
 
 			// Skip if loading attribute already exists.
