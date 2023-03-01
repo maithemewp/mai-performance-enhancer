@@ -156,12 +156,12 @@ class Mai_Performance_Enhancer {
 				foreach ( $lazies as $lazy ) {
 					// Lazy load images.
 					if ( $this->settings['lazy_images'] ) {
-						$this->do_lazy_images( $lazy );
+						$this->do_lazy_images( $lazy, $dom );
 					}
 
 					// Lazy load iframes.
 					if ( $this->settings['lazy_iframes'] ) {
-						$this->do_lazy_iframes( $lazy );
+						$this->do_lazy_iframes( $lazy, $dom );
 					}
 				}
 			}
@@ -293,7 +293,7 @@ class Mai_Performance_Enhancer {
 
 		foreach ( $scripts as $node ) {
 			// Skip if parent is noscript tag.
-			if ( 'noscript' === $node->parentNode->nodeName ) {
+			if ( 'noscript' === $node->parentNode->tagName ) {
 				continue;
 			}
 
@@ -1062,25 +1062,35 @@ class Mai_Performance_Enhancer {
 	/**
 	 * Adds lazy loading to images.
 	 *
-	 * @param DOMNode $element
+	 * @param DOMNode     $node
+	 * @param DOMDocument $dom
 	 *
 	 * @return void
 	 */
-	function do_lazy_images( $element ) {
+	function do_lazy_images( $element, $dom ) {
 		$images = $element->getElementsByTagName( 'img' );
 
 		if ( ! $images->length ) {
 			return;
 		}
 
-		$first = 'main' === $element->tagName;
+		$first = class_exists( 'Mai_Engine' ) && 'main' === $element->tagName;
 
 		foreach ( $images as $node ) {
 			if ( $first ) {
 				$first = false;
 
 				// Skip the first, likely above the fold.
-				if ( in_array( 'entry-image', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
+				if ( in_array( 'entry-image-single', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
+					continue;
+				}
+
+				// Check for manually inserted image as first element in content.
+				$xpath  = new DOMXPath( $dom );
+				$manual = $xpath->query( '//main/article[contains(concat(" ", @class, " "), " entry-single ")]/div[contains(concat(" ", @class, " "), " entry-wrap-single ")]/div[contains(concat(" ", @class, " "), " entry-content-single ")]/figure[1]/img' );
+
+				// Skip if first image is a manually inserted figure or image block.
+				if ( $manual->length && ( $manual->item(0)->getAttribute( 'src' ) === $node->getAttribute( 'src' ) ) ) {
 					continue;
 				}
 			}
@@ -1102,11 +1112,12 @@ class Mai_Performance_Enhancer {
 	/**
 	 * Adds lazy loading to iframes.
 	 *
-	 * @param DOMNode $node
+	 * @param DOMNode     $node
+	 * @param DOMDocument $dom
 	 *
 	 * @return void
 	 */
-	function do_lazy_iframes( $element ) {
+	function do_lazy_iframes( $element, $dom ) {
 		$iframes = $element->getElementsByTagName( 'iframes' );
 
 		if ( ! $iframes->length ) {
