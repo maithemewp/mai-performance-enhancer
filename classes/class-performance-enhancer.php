@@ -391,9 +391,10 @@ class Mai_Performance_Enhancer {
 			'affiliate-wp',
 			'amazon-adsystem.com',
 			'bing.com',
+			'catalyst',
 			'connect.facebook.net',
 			'convertflow',
-			'complex.com',
+			// 'complex.com', // Now catalyst.
 			'facebook.net',
 			// 'google-analytics.com',
 			'googleadservices.com',
@@ -523,14 +524,14 @@ class Mai_Performance_Enhancer {
 			'bing.com' => [
 				'https://bat.bing.com',
 			],
-			'cdnjs.cloudflare.com' => [
-				'https://cdnjs.cloudflare.com',
-			],
-			'complex.com' => [
+			'catalyst' => [
 				'https://media.complex.com',
 				'https://c.amazon-adsystem.com',
 				'https://cdn.confiant-integrations.net',
 				'https://micro.rubiconproject.com',
+			],
+			'cdnjs.cloudflare.com' => [
+				'https://cdnjs.cloudflare.com',
 			],
 			'convertflow.com' => [
 				'https://js.convertflow.co',
