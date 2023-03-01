@@ -274,7 +274,10 @@ class Mai_Performance_Enhancer {
 			$skips[] = 'surveymonkey';
 		}
 
-		$remove = [];
+		$remove = [
+			'instagram.com/embed.js',
+			'platform.twitter.com/widgets.js',
+		];
 
 		// Filter scripts to skip or remove.
 		$skips  = apply_filters( 'mai_performance_enhancer_skip_scripts', $skips );
@@ -745,6 +748,62 @@ class Mai_Performance_Enhancer {
 		// Bail if no container.
 		if ( ! $container ) {
 			return;
+		}
+
+		// Check twitter and instagram embeds.
+		$xpath  = new DOMXPath( $dom );
+		$tweets = $xpath->query( '//blockquote[contains(concat(" ", @class, " "), " twitter-tweet ")]' );
+		$instas = $xpath->query( '//blockquote[contains(concat(" ", @class, " "), " instagram-media ")]' );
+
+		if ( $tweets->length || $instas->length ) {
+			$this->inject .= "var lazyEmbeds = document.createElement( 'script' );";
+			$lazy_embeds   = '';
+
+			if ( $tweets->length ) {
+				$lazy_embeds .= "var tweets = document.querySelectorAll( 'blockquote.twitter-tweet' );";
+				$lazy_embeds .= "if ( tweets.length ) {";
+					$lazy_embeds .= "function handleTweets( entries ) {";
+						$lazy_embeds .= "entries.map((entry) => {";
+							$lazy_embeds .= "if ( entry.isIntersecting ) {";
+								$lazy_embeds .= "var script = document.createElement( 'script' );";
+								$lazy_embeds .= "script.setAttribute( 'src', 'https://platform.twitter.com/widgets.js' );";
+								$lazy_embeds .= "script.setAttribute( 'charset', 'utf-8' );";
+								$lazy_embeds .= "entry.target.parentNode.insertBefore( script, entry.target.nextSibling );";
+								$lazy_embeds .= "observer.unobserve( entry.target );";
+							$lazy_embeds .= "}";
+						$lazy_embeds .= "});";
+					$lazy_embeds .= "}";
+					$lazy_embeds .= "var options = {";
+						$lazy_embeds .= "rootMargin: '0px 0px 200px 0px',";
+					$lazy_embeds .= "};";
+					$lazy_embeds .= "var observer = new IntersectionObserver( handleTweets, options );";
+					$lazy_embeds .= "var run      = observer.observe( tweets[0] );";
+				$lazy_embeds .= "}";
+			}
+
+			if ( $instas->length ) {
+				$lazy_embeds .= "var instas = document.querySelectorAll( 'blockquote.instagram-media' );";
+				$lazy_embeds .= "if ( instas.length ) {";
+					$lazy_embeds .= "function handleInsta( entries ) {";
+						$lazy_embeds .= "entries.map((entry) => {";
+							$lazy_embeds .= "if ( entry.isIntersecting ) {";
+								$lazy_embeds .= "var script = document.createElement( 'script' );";
+								$lazy_embeds .= "script.setAttribute( 'src', '//www.instagram.com/embed.js' );";
+								$lazy_embeds .= "entry.target.parentNode.insertBefore( script, entry.target.nextSibling );";
+								$lazy_embeds .= "observer.unobserve( entry.target );";
+							$lazy_embeds .= "}";
+						$lazy_embeds .= "});";
+					$lazy_embeds .= "}";
+					$lazy_embeds .= "var options = {";
+						$lazy_embeds .= "rootMargin: '0px 0px 200px 0px',";
+					$lazy_embeds .= "};";
+					$lazy_embeds .= "var observer = new IntersectionObserver( handleInsta, options );";
+					$lazy_embeds .= "var run      = observer.observe( instas[0] );";
+				$lazy_embeds .= "}";
+			}
+
+			$this->inject .= sprintf( "lazyEmbeds.innerHTML = %s;", json_encode( $lazy_embeds ) );
+			$this->inject .= 'nobots.parentNode.insertBefore( lazyEmbeds, nobots );';
 		}
 
 		// Build bot checker and add injected scripts.
