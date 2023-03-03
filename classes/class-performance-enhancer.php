@@ -570,7 +570,7 @@ class Mai_Performance_Enhancer {
 			'hotjar.com' => [
 				'https://script.hotjar.com',
 			],
-			'klaviyo.com/' => [
+			'klaviyo.com' => [
 				'https://www.klaviyo.com',
 				'https://a.klaviyo.com',
 				'https://static.klaviyo.com',
