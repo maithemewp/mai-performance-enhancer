@@ -403,7 +403,7 @@ class Mai_Performance_Enhancer {
 			'googleadservices.com',
 			// 'googleoptimize.com',
 			'googlesyndication',
-			'googletagmanager.com',
+			// 'googletagmanager.com',
 			'gstatic.com',
 			'hotjar.com',
 			'klaviyo.com',
