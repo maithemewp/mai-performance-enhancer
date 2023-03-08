@@ -156,12 +156,12 @@ class Mai_Performance_Enhancer {
 				foreach ( $lazies as $lazy ) {
 					// Lazy load images.
 					if ( $this->settings['lazy_images'] ) {
-						$this->do_lazy_images( $lazy );
+						$this->do_lazy_images( $lazy, $dom );
 					}
 
 					// Lazy load iframes.
 					if ( $this->settings['lazy_iframes'] ) {
-						$this->do_lazy_iframes( $lazy );
+						$this->do_lazy_iframes( $lazy, $dom );
 					}
 				}
 			}
@@ -274,7 +274,10 @@ class Mai_Performance_Enhancer {
 			$skips[] = 'surveymonkey';
 		}
 
-		$remove = [];
+		$remove = [
+			'instagram.com/embed.js',
+			'platform.twitter.com/widgets.js',
+		];
 
 		// Filter scripts to skip or remove.
 		$skips  = apply_filters( 'mai_performance_enhancer_skip_scripts', $skips );
@@ -290,7 +293,7 @@ class Mai_Performance_Enhancer {
 
 		foreach ( $scripts as $node ) {
 			// Skip if parent is noscript tag.
-			if ( 'noscript' === $node->parentNode->nodeName ) {
+			if ( 'noscript' === $node->parentNode->tagName ) {
 				continue;
 			}
 
@@ -391,15 +394,16 @@ class Mai_Performance_Enhancer {
 			'affiliate-wp',
 			'amazon-adsystem.com',
 			'bing.com',
+			'catalyst',
 			'connect.facebook.net',
 			'convertflow',
-			'complex.com',
+			// 'complex.com', // Now catalyst.
 			'facebook.net',
 			'google-analytics.com',
 			'googleadservices.com',
 			// 'googleoptimize.com',
 			'googlesyndication',
-			'googletagmanager.com',
+			// 'googletagmanager.com',
 			'gstatic.com',
 			'hotjar.com',
 			'klaviyo.com',
@@ -523,14 +527,14 @@ class Mai_Performance_Enhancer {
 			'bing.com' => [
 				'https://bat.bing.com',
 			],
-			'cdnjs.cloudflare.com' => [
-				'https://cdnjs.cloudflare.com',
-			],
-			'complex.com' => [
+			'catalyst' => [
 				'https://media.complex.com',
 				'https://c.amazon-adsystem.com',
 				'https://cdn.confiant-integrations.net',
 				'https://micro.rubiconproject.com',
+			],
+			'cdnjs.cloudflare.com' => [
+				'https://cdnjs.cloudflare.com',
 			],
 			'convertflow.com' => [
 				'https://js.convertflow.co',
@@ -566,7 +570,7 @@ class Mai_Performance_Enhancer {
 			'hotjar.com' => [
 				'https://script.hotjar.com',
 			],
-			'klaviyo.com/' => [
+			'klaviyo.com' => [
 				'https://www.klaviyo.com',
 				'https://a.klaviyo.com',
 				'https://static.klaviyo.com',
@@ -744,6 +748,62 @@ class Mai_Performance_Enhancer {
 		// Bail if no container.
 		if ( ! $container ) {
 			return;
+		}
+
+		// Check twitter and instagram embeds.
+		$xpath  = new DOMXPath( $dom );
+		$tweets = $xpath->query( '//blockquote[contains(concat(" ", @class, " "), " twitter-tweet ")]' );
+		$instas = $xpath->query( '//blockquote[contains(concat(" ", @class, " "), " instagram-media ")]' );
+
+		if ( $tweets->length || $instas->length ) {
+			$this->inject .= "var lazyEmbeds = document.createElement( 'script' );";
+			$lazy_embeds   = '';
+
+			if ( $tweets->length ) {
+				$lazy_embeds .= "var tweets = document.querySelectorAll( 'blockquote.twitter-tweet' );";
+				$lazy_embeds .= "if ( tweets.length ) {";
+					$lazy_embeds .= "function handleTweets( entries ) {";
+						$lazy_embeds .= "entries.map((entry) => {";
+							$lazy_embeds .= "if ( entry.isIntersecting ) {";
+								$lazy_embeds .= "var script = document.createElement( 'script' );";
+								$lazy_embeds .= "script.setAttribute( 'src', 'https://platform.twitter.com/widgets.js' );";
+								$lazy_embeds .= "script.setAttribute( 'charset', 'utf-8' );";
+								$lazy_embeds .= "entry.target.parentNode.insertBefore( script, entry.target.nextSibling );";
+								$lazy_embeds .= "observer.unobserve( entry.target );";
+							$lazy_embeds .= "}";
+						$lazy_embeds .= "});";
+					$lazy_embeds .= "}";
+					$lazy_embeds .= "var options = {";
+						$lazy_embeds .= "rootMargin: '0px 0px 200px 0px',";
+					$lazy_embeds .= "};";
+					$lazy_embeds .= "var observer = new IntersectionObserver( handleTweets, options );";
+					$lazy_embeds .= "var run      = observer.observe( tweets[0] );";
+				$lazy_embeds .= "}";
+			}
+
+			if ( $instas->length ) {
+				$lazy_embeds .= "var instas = document.querySelectorAll( 'blockquote.instagram-media' );";
+				$lazy_embeds .= "if ( instas.length ) {";
+					$lazy_embeds .= "function handleInsta( entries ) {";
+						$lazy_embeds .= "entries.map((entry) => {";
+							$lazy_embeds .= "if ( entry.isIntersecting ) {";
+								$lazy_embeds .= "var script = document.createElement( 'script' );";
+								$lazy_embeds .= "script.setAttribute( 'src', '//www.instagram.com/embed.js' );";
+								$lazy_embeds .= "entry.target.parentNode.insertBefore( script, entry.target.nextSibling );";
+								$lazy_embeds .= "observer.unobserve( entry.target );";
+							$lazy_embeds .= "}";
+						$lazy_embeds .= "});";
+					$lazy_embeds .= "}";
+					$lazy_embeds .= "var options = {";
+						$lazy_embeds .= "rootMargin: '0px 0px 200px 0px',";
+					$lazy_embeds .= "};";
+					$lazy_embeds .= "var observer = new IntersectionObserver( handleInsta, options );";
+					$lazy_embeds .= "var run      = observer.observe( instas[0] );";
+				$lazy_embeds .= "}";
+			}
+
+			$this->inject .= sprintf( "lazyEmbeds.innerHTML = %s;", json_encode( $lazy_embeds ) );
+			$this->inject .= 'nobots.parentNode.insertBefore( lazyEmbeds, nobots );';
 		}
 
 		// Build bot checker and add injected scripts.
@@ -1002,25 +1062,35 @@ class Mai_Performance_Enhancer {
 	/**
 	 * Adds lazy loading to images.
 	 *
-	 * @param DOMNode $element
+	 * @param DOMNode     $node
+	 * @param DOMDocument $dom
 	 *
 	 * @return void
 	 */
-	function do_lazy_images( $element ) {
+	function do_lazy_images( $element, $dom ) {
 		$images = $element->getElementsByTagName( 'img' );
 
 		if ( ! $images->length ) {
 			return;
 		}
 
-		$first = 'main' === $element->tagName;
+		$first = class_exists( 'Mai_Engine' ) && 'main' === $element->tagName;
 
 		foreach ( $images as $node ) {
 			if ( $first ) {
 				$first = false;
 
 				// Skip the first, likely above the fold.
-				if ( in_array( 'entry-image', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
+				if ( in_array( 'entry-image-single', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
+					continue;
+				}
+
+				// Check for manually inserted image as first element in content.
+				$xpath  = new DOMXPath( $dom );
+				$manual = $xpath->query( '//main/article[contains(concat(" ", @class, " "), " entry-single ")]/div[contains(concat(" ", @class, " "), " entry-wrap-single ")]/div[contains(concat(" ", @class, " "), " entry-content-single ")]/figure[1]/img' );
+
+				// Skip if first image is a manually inserted figure or image block.
+				if ( $manual->length && ( $manual->item(0)->getAttribute( 'src' ) === $node->getAttribute( 'src' ) ) ) {
 					continue;
 				}
 			}
@@ -1042,11 +1112,12 @@ class Mai_Performance_Enhancer {
 	/**
 	 * Adds lazy loading to iframes.
 	 *
-	 * @param DOMNode $node
+	 * @param DOMNode     $node
+	 * @param DOMDocument $dom
 	 *
 	 * @return void
 	 */
-	function do_lazy_iframes( $element ) {
+	function do_lazy_iframes( $element, $dom ) {
 		$iframes = $element->getElementsByTagName( 'iframes' );
 
 		if ( ! $iframes->length ) {
