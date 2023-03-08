@@ -5,7 +5,7 @@
  * Plugin URI:        https://bizbudding.com/
  * GitHub Plugin URI: maithemewp/mai-performance-enhancer
  * Description:       An aggressive plugin to move all (most) scripts to the footer and do various performance dom cleanup tasks.
- * Version:           0.30.0
+ * Version:           0.31.0
  *
  * Author:            BizBudding
  * Author URI:        https://bizbudding.com
@@ -13,6 +13,9 @@
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) exit;
+
+// Must be at the top of the file.
+use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 /**
  * Main Mai_Performance_Enhancer_Plugin Class.
@@ -90,7 +93,7 @@ final class Mai_Performance_Enhancer_Plugin {
 	private function setup_constants() {
 		// Plugin version.
 		if ( ! defined( 'MAI_PERFORMANCE_ENHANCER_VERSION' ) ) {
-			define( 'MAI_PERFORMANCE_ENHANCER_VERSION', '0.30.0' );
+			define( 'MAI_PERFORMANCE_ENHANCER_VERSION', '0.31.0' );
 		}
 	}
 
@@ -102,6 +105,8 @@ final class Mai_Performance_Enhancer_Plugin {
 	 * @return  void
 	 */
 	private function includes() {
+		// Include vendor libraries.
+		require_once __DIR__ . '/vendor/autoload.php';
 		// Main class.
 		include __DIR__ . '/classes/class-performance-enhancer.php';
 	}
@@ -128,18 +133,13 @@ final class Mai_Performance_Enhancer_Plugin {
 	 * @return void
 	 */
 	public function updater() {
-		// Bail if current user cannot manage plugins.
-		if ( ! current_user_can( 'install_plugins' ) ) {
-			return;
-		}
-
 		// Bail if plugin updater is not loaded.
-		if ( ! class_exists( 'Puc_v4_Factory' ) ) {
+		if ( ! class_exists( 'YahnisElsts\PluginUpdateChecker\v5\PucFactory' ) ) {
 			return;
 		}
 
 		// Setup the updater.
-		$updater = Puc_v4_Factory::buildUpdateChecker( 'https://github.com/maithemewp/mai-performance-enhancer', __FILE__, 'mai-performance-enhancer' );
+		$updater = PucFactory::buildUpdateChecker( 'https://github.com/maithemewp/mai-performance-enhancer', __FILE__, 'mai-performance-enhancer' );
 
 		// Set the stable branch.
 		$updater->setBranch( 'main' );
