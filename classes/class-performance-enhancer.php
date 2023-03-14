@@ -11,6 +11,7 @@ class Mai_Performance_Enhancer {
 	protected $styles;
 	protected $remove;
 	protected $inject;
+	protected $preloads;
 	protected $settings;
 	protected $data;
 
@@ -25,6 +26,7 @@ class Mai_Performance_Enhancer {
 		$this->sources  = [];
 		$this->styles   = [];
 		$this->remove   = [];
+		$this->preloads = [];
 		$this->inject   = '';
 		$this->settings = apply_filters( 'mai_performance_enhancer_settings',
 			[
@@ -147,19 +149,43 @@ class Mai_Performance_Enhancer {
 			return $buffer;
 		}
 
+		// Find images to preload.
+		$xpath    = new DOMXPath( $dom );
+		$preloads = $xpath->query( '//header/descendant-or-self::*[@src]' );
+		$firsts   = $xpath->query( '//main/article[contains(concat(" ", @class, " "), " entry-single ")]/div[contains(concat(" ", @class, " "), " entry-wrap-single ")]/div[contains(concat(" ", @class, " "), " entry-content-single ")]/*[1]/descendant-or-self::*[@src]' );
+
+		// Add to preloads.
+		if ( $preloads->length ) {
+			foreach ( $preloads as $node ) {
+				$this->preloads[] = [
+					'src'    => $node->getAttribute( 'src' ),
+					'srcset' => $node->getAttribute( 'srcset' ),
+					'sizes'  => $node->getAttribute( 'sizes' ),
+				];
+			}
+		}
+
+		// Add to preloads.
+		if ( $firsts->length ) {
+			foreach ( $firsts as $node ) {
+				$this->preloads[] = [
+					'src'    => $node->getAttribute( 'src' ),
+					'srcset' => $node->getAttribute( 'srcset' ),
+					'sizes'  => $node->getAttribute( 'sizes' ),
+				];
+			}
+		}
+
+
 		// Handle lazy loading.
 		if ( $this->settings['lazy_images'] || $this->settings['lazy_iframes'] ) {
 			$xpath  = new DOMXPath( $dom );
 			$lazies = $xpath->query( '//main | //footer | //div[@id="top"]/following-sibling::*[not(self::script or self::style or self::link)]' );
 
 			if ( $lazies->length ) {
-				// Check for images in the first child element of entry-content-single.
-				$xpath  = new DOMXPath( $dom );
-				$manual = $xpath->query( '//main/article[contains(concat(" ", @class, " "), " entry-single ")]/div[contains(concat(" ", @class, " "), " entry-wrap-single ")]/div[contains(concat(" ", @class, " "), " entry-content-single ")]/*[1]/descendant-or-self::*[@src]' );
-
 				// Skip if first images.
-				if ( $manual->length ) {
-					foreach ( $manual as $node ) {
+				if ( $firsts->length ) {
+					foreach ( $firsts as $node ) {
 						// Set as eager loading, since it's likely above the fold.
 						// This will be skipped in `do_lazy_images()` since the attribute is already set.
 						$node->setAttribute( 'loading', 'eager' );
@@ -197,6 +223,11 @@ class Mai_Performance_Enhancer {
 		// Preload headers for server side early hints.
 		if ( $this->settings['preload_header'] ) {
 			$this->do_preload_headers( $dom );
+		}
+
+		// Handle preloads.
+		if ( $this->preloads ) {
+			$this->do_preloads( $dom );
 		}
 
 		// Handle preconnect links.
@@ -511,6 +542,80 @@ class Mai_Performance_Enhancer {
 				// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
 				$header = "Link: <{$href}>; rel=preload; as={$as}; crossorigin";
 				header( $header, false );
+			}
+		}
+	}
+
+	/**
+	 * Adds preload links to the head.
+	 *
+	 * @param DOMDocument $dom
+	 *
+	 * @return void
+	 */
+	function do_preloads( $dom ) {
+		$preloads = [];
+
+
+		foreach ( $this->preloads as $atts ) {
+			$attr   = [];
+			$src    = isset( $atts['src'] ) ? (string) $atts['src'] : '';
+			$srcset = isset( $atts['srcset'] ) ? (string) $atts['srcset'] : '';
+			$sizes  = isset( $atts['sizes'] ) ? (string) $atts['sizes'] : '';
+
+			if ( $src && ! $srcset ) {
+				$attr[] = sprintf( 'href="%s"', $src );
+			} else {
+				// @link https://nostrongbeliefs.com/blog/preloading-responsive-images/
+				$attr[] = sprintf( 'href=""' );
+			}
+
+			if ( $srcset ) {
+				$attr[] = sprintf( 'imagesrcset="%s"', $srcset );
+			}
+
+			if ( $sizes ) {
+				$attr[] = sprintf( 'imagesizes="%s"', $sizes );
+			}
+
+			$attr = array_filter( $attr );
+
+			if ( ! $attr ) {
+				continue;
+			}
+
+			$preloads[] = sprintf( '<link rel="preload" class="maipe-preload" %s as="image" />%s', trim( implode( ' ', $attr ) ), PHP_EOL );
+		}
+
+		if ( ! $preloads ) {
+			return;
+		}
+
+		$metas    = $dom->getElementsByTagName( 'meta' );
+		$meta     = $metas->item(0);
+		$string   = PHP_EOL . trim( implode( '', $preloads ) );
+		$fragment = $dom->createDocumentFragment();
+		$fragment->appendXML( $string );
+		$this->insertafter( $fragment, $meta );
+
+		// Find duplicates.
+		$xpath = new DOMXPath( $dom );
+		$query = $xpath->query( '/html/head/link[@rel="preload"]' );
+
+		// Remove duplicate preloads.
+		if ( $query->length ) {
+			$hrefs = $srcsets = [];
+
+			foreach ( $query as $node ) {
+				$href    = $node->getAttribute( 'href' );
+				$srcsets = $node->getAttribute( 'srcset' );
+
+				if ( in_array( $href, $hrefs ) || in_array( $srcset, $srcsets ) ) {
+					$node->parentNode->removeChild( $node );
+				}
+
+				$hrefs[]   = $href;
+				$srcsets[] = $srcset;
 			}
 		}
 	}
