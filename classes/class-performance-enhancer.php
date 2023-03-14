@@ -150,9 +150,22 @@ class Mai_Performance_Enhancer {
 		// Handle lazy loading.
 		if ( $this->settings['lazy_images'] || $this->settings['lazy_iframes'] ) {
 			$xpath  = new DOMXPath( $dom );
-			$lazies = $xpath->query( '//main | footer | //div[@id="top"]/following-sibling::*[not(self::script or self::style or self::link)]' );
+			$lazies = $xpath->query( '//main | //footer | //div[@id="top"]/following-sibling::*[not(self::script or self::style or self::link)]' );
 
 			if ( $lazies->length ) {
+				// Check for images in the first child element of entry-content-single.
+				$xpath  = new DOMXPath( $dom );
+				$manual = $xpath->query( '//main/article[contains(concat(" ", @class, " "), " entry-single ")]/div[contains(concat(" ", @class, " "), " entry-wrap-single ")]/div[contains(concat(" ", @class, " "), " entry-content-single ")]/*[1]/descendant-or-self::*[@src]' );
+
+				// Skip if first images.
+				if ( $manual->length ) {
+					foreach ( $manual as $node ) {
+						// Set as eager loading, since it's likely above the fold.
+						// This will be skipped in `do_lazy_images()` since the attribute is already set.
+						$node->setAttribute( 'loading', 'eager' );
+					}
+				}
+
 				foreach ( $lazies as $lazy ) {
 					// Lazy load images.
 					if ( $this->settings['lazy_images'] ) {
@@ -1074,27 +1087,7 @@ class Mai_Performance_Enhancer {
 			return;
 		}
 
-		$first = class_exists( 'Mai_Engine' ) && 'main' === $element->tagName;
-
 		foreach ( $images as $node ) {
-			if ( $first ) {
-				$first = false;
-
-				// Skip the first, likely above the fold.
-				if ( in_array( 'entry-image-single', explode( ' ', $node->getAttribute( 'class' ) ) ) ) {
-					continue;
-				}
-
-				// Check for manually inserted image as first element in content.
-				$xpath  = new DOMXPath( $dom );
-				$manual = $xpath->query( '//main/article[contains(concat(" ", @class, " "), " entry-single ")]/div[contains(concat(" ", @class, " "), " entry-wrap-single ")]/div[contains(concat(" ", @class, " "), " entry-content-single ")]/figure[1]/img' );
-
-				// Skip if first image is a manually inserted figure or image block.
-				if ( $manual->length && ( $manual->item(0)->getAttribute( 'src' ) === $node->getAttribute( 'src' ) ) ) {
-					continue;
-				}
-			}
-
 			// Skip if loading attribute already exists.
 			if ( $node->getAttribute( 'loading' ) ) {
 				continue;
