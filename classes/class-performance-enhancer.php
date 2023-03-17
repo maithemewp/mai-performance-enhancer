@@ -607,10 +607,10 @@ class Mai_Performance_Enhancer {
 			$hrefs = $srcsets = [];
 
 			foreach ( $query as $node ) {
-				$href    = $node->getAttribute( 'href' );
-				$srcsets = $node->getAttribute( 'srcset' );
+				$href   = $node->getAttribute( 'href' );
+				$srcset = $node->getAttribute( 'srcset' );
 
-				if ( in_array( $href, $hrefs ) || in_array( $srcset, $srcsets ) ) {
+				if ( ( $href && in_array( $href, $hrefs ) ) || ( $srcset && in_array( $srcset, $srcsets ) ) ) {
 					$node->parentNode->removeChild( $node );
 				}
 
