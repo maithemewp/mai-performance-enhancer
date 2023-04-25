@@ -107,7 +107,7 @@ final class Mai_Performance_Enhancer_Plugin {
 	private function includes() {
 		// Include vendor libraries.
 		require_once __DIR__ . '/vendor/autoload.php';
-		// Main class.
+		// Include main class.
 		include __DIR__ . '/classes/class-performance-enhancer.php';
 	}
 
