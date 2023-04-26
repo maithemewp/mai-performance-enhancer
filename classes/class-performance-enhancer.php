@@ -593,10 +593,29 @@ class Mai_Performance_Enhancer {
 
 		$metas    = $dom->getElementsByTagName( 'meta' );
 		$meta     = $metas->item(0);
-		$string   = PHP_EOL . trim( implode( '', $preloads ) );
-		$fragment = $dom->createDocumentFragment();
-		$fragment->appendXML( $string );
-		$this->insertafter( $fragment, $meta );
+		$string   = PHP_EOL . trim( implode( PHP_EOL, $preloads ) );
+
+		/**
+		 * Build the temporary dom.
+		 * Special characters were causing issues with `appendXML()`.
+		 *
+		 * @link https://stackoverflow.com/questions/4645738/domdocument-appendxml-with-special-characters
+		 * @link https://www.py4u.net/discuss/974358
+		 */
+		$tmp  = $this->get_dom( $string );
+		$node = $tmp ? $dom->importNode( $tmp->documentElement, true ) : false;
+
+		if ( $node ) {
+			/**
+			* Add cta after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
+			* @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
+			*/
+			if ( null === $meta->nextSibling ) {
+				$meta->parentNode->appendChild( $node );
+			} else {
+				$meta->parentNode->insertBefore( $node, $meta->nextSibling );
+			}
+		}
 
 		// Find duplicates.
 		$xpath = new DOMXPath( $dom );
@@ -744,10 +763,29 @@ class Mai_Performance_Enhancer {
 			if ( $array ) {
 				$metas    = $dom->getElementsByTagName( 'meta' );
 				$meta     = $metas->item(0);
-				$string   = PHP_EOL . trim( implode( '', $array ) );
-				$fragment = $dom->createDocumentFragment();
-				$fragment->appendXML( $string );
-				$this->insertafter( $fragment, $meta );
+				$string   = PHP_EOL . trim( implode( PHP_EOL, $array ) );
+
+				/**
+				 * Build the temporary dom.
+				 * Special characters were causing issues with `appendXML()`.
+				 *
+				 * @link https://stackoverflow.com/questions/4645738/domdocument-appendxml-with-special-characters
+				 * @link https://www.py4u.net/discuss/974358
+				 */
+				$tmp  = $this->get_dom( $string );
+				$node = $tmp ? $dom->importNode( $tmp->documentElement, true ) : false;
+
+				if ( $node ) {
+					/**
+					* Add cta after this element. There is no insertAfter() in PHP ¯\_(ツ)_/¯.
+					* @link https://gist.github.com/deathlyfrantic/cd8d7ef8ba91544cdf06
+					*/
+					if ( null === $meta->nextSibling ) {
+						$meta->parentNode->appendChild( $node );
+					} else {
+						$meta->parentNode->insertBefore( $node, $meta->nextSibling );
+					}
+				}
 			}
 		}
 	}
