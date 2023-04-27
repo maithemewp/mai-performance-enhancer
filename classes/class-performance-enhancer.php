@@ -152,7 +152,8 @@ class Mai_Performance_Enhancer {
 		// Find images to preload.
 		$xpath    = new DOMXPath( $dom );
 		$preloads = $xpath->query( '//header/descendant-or-self::*[@src]' );
-		$firsts   = $xpath->query( '//main/article[contains(concat(" ", @class, " "), " entry-single ")]/div[contains(concat(" ", @class, " "), " entry-wrap-single ")]/div[contains(concat(" ", @class, " "), " entry-content-single ")]/*[1]/descendant-or-self::*[@src]' );
+		// article.entry-single > div/figure/etc > [src], or article.entry-single > .entry-wrap-single > .entry-content-single > div/figure/etc > [src]
+		$firsts   = $xpath->query( '//main/article[contains(concat(" ", @class, " "), " entry-single ")]/*[1]/descendant-or-self::*[@src] | //main/article[contains(concat(" ", @class, " "), " entry-single ")]/div[contains(concat(" ", @class, " "), " entry-wrap-single ")]/div[contains(concat(" ", @class, " "), " entry-content-single ")]/*[1]/descendant-or-self::*[@src]' );
 
 		// Add to preloads.
 		if ( $preloads->length ) {
