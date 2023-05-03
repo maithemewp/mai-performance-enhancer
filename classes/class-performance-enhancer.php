@@ -128,7 +128,7 @@ class Mai_Performance_Enhancer {
 		$buffer = $this->do_common( $buffer );
 
 		// Gets DOMDocument.
-		$dom = $this->get_dom( $buffer );
+		$dom = $this->get_dom( $buffer, false );
 
 		// Bail if no dom.
 		if ( ! $dom ) {
@@ -277,7 +277,7 @@ class Mai_Performance_Enhancer {
 	 *
 	 * @return DOMDocument
 	 */
-	function get_dom( $buffer ) {
+	function get_dom( $buffer, $inner_only = false ) {
 		// Create the new document.
 		$dom = new DOMDocument();
 
@@ -286,6 +286,15 @@ class Mai_Performance_Enhancer {
 
 		// Load the content in the document HTML.
 		$dom->loadHTML( mb_convert_encoding( $buffer, 'HTML-ENTITIES', 'UTF-8' ) );
+
+		// If we only want inner content.
+		if ( $inner_only ) {
+			// Remove <!DOCTYPE.
+			$dom->removeChild( $dom->doctype );
+
+			// Remove <html><body></body></html>.
+			$dom->replaceChild( $dom->firstChild->firstChild->firstChild, $dom->firstChild ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		}
 
 		// Handle errors.
 		libxml_clear_errors();
@@ -571,12 +580,14 @@ class Mai_Performance_Enhancer {
 				$attr[] = sprintf( 'href=""' );
 			}
 
+			// Add srcset, and only add sizes if srcset exists.
+			// HTML validator threw errors if sizes was added without srcset.
 			if ( $srcset ) {
 				$attr[] = sprintf( 'imagesrcset="%s"', $srcset );
-			}
 
-			if ( $sizes ) {
-				$attr[] = sprintf( 'imagesizes="%s"', $sizes );
+				if ( $sizes ) {
+					$attr[] = sprintf( 'imagesizes="%s"', $sizes );
+				}
 			}
 
 			$attr = array_filter( $attr );
@@ -603,7 +614,7 @@ class Mai_Performance_Enhancer {
 		 * @link https://stackoverflow.com/questions/4645738/domdocument-appendxml-with-special-characters
 		 * @link https://www.py4u.net/discuss/974358
 		 */
-		$tmp  = $this->get_dom( $string );
+		$tmp  = $this->get_dom( $string, true );
 		$node = $tmp ? $dom->importNode( $tmp->documentElement, true ) : false;
 
 		if ( $node ) {
@@ -773,7 +784,7 @@ class Mai_Performance_Enhancer {
 				 * @link https://stackoverflow.com/questions/4645738/domdocument-appendxml-with-special-characters
 				 * @link https://www.py4u.net/discuss/974358
 				 */
-				$tmp  = $this->get_dom( $string );
+				$tmp  = $this->get_dom( $string, true );
 				$node = $tmp ? $dom->importNode( $tmp->documentElement, true ) : false;
 
 				if ( $node ) {
