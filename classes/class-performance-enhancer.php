@@ -128,7 +128,7 @@ class Mai_Performance_Enhancer {
 		$buffer = $this->do_common( $buffer );
 
 		// Gets DOMDocument.
-		$dom = $this->get_dom( $buffer );
+		$dom = $this->get_dom( $buffer, true );
 
 		// Bail if no dom.
 		if ( ! $dom ) {
@@ -273,11 +273,12 @@ class Mai_Performance_Enhancer {
 	/**
 	 * Gets DOMDocument.
 	 *
-	 * @param string $buffer The existing HTML buffer.
+	 * @param string $buffer     The existing HTML buffer.
+	 * @param string $keep_wraps If keeping html/body wraps.
 	 *
 	 * @return DOMDocument
 	 */
-	function get_dom( $buffer ) {
+	function get_dom( $buffer, $keep_wraps = false ) {
 		// Create the new document.
 		$dom = new DOMDocument();
 
@@ -287,19 +288,27 @@ class Mai_Performance_Enhancer {
 		// Encode.
 		$html = mb_convert_encoding( $buffer, 'HTML-ENTITIES', 'UTF-8' );
 
-		// Load the content in the document HTML.
-		$dom->loadHTML( "<div>$html</div>" );
-
-		// Handle wraps.
-		$container = $dom->getElementsByTagName('div')->item(0);
-		$container = $container->parentNode->removeChild( $container );
-
-		while ( $dom->firstChild ) {
-			$dom->removeChild( $dom->firstChild );
+		// If keeping wraps.
+		if ( $keep_wraps ) {
+			// Load the content in the document HTML.
+			$dom->loadHTML( $html );
 		}
+		// Remove wraps.
+		else {
+			// Load the content in the document HTML.
+			$dom->loadHTML( "<div>$html</div>" );
 
-		while ( $container->firstChild ) {
-			$dom->appendChild( $container->firstChild );
+			// Handle wraps.
+			$container = $dom->getElementsByTagName('div')->item(0);
+			$container = $container->parentNode->removeChild( $container );
+
+			while ( $dom->firstChild ) {
+				$dom->removeChild( $dom->firstChild );
+			}
+
+			while ( $container->firstChild ) {
+				$dom->appendChild( $container->firstChild );
+			}
 		}
 
 		// Handle errors.
