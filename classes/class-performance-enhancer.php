@@ -128,7 +128,7 @@ class Mai_Performance_Enhancer {
 		$buffer = $this->do_common( $buffer );
 
 		// Gets DOMDocument.
-		$dom = $this->get_dom( $buffer, false );
+		$dom = $this->get_dom( $buffer );
 
 		// Bail if no dom.
 		if ( ! $dom ) {
@@ -277,23 +277,29 @@ class Mai_Performance_Enhancer {
 	 *
 	 * @return DOMDocument
 	 */
-	function get_dom( $buffer, $inner_only = false ) {
+	function get_dom( $buffer ) {
 		// Create the new document.
 		$dom = new DOMDocument();
 
 		// Modify state.
 		$libxml_previous_state = libxml_use_internal_errors( true );
 
+		// Encode.
+		$html = mb_convert_encoding( $buffer, 'HTML-ENTITIES', 'UTF-8' );
+
 		// Load the content in the document HTML.
-		$dom->loadHTML( mb_convert_encoding( $buffer, 'HTML-ENTITIES', 'UTF-8' ) );
+		$dom->loadHTML( "<div>$html</div>" );
 
-		// If we only want inner content.
-		if ( $inner_only ) {
-			// Remove <!DOCTYPE.
-			$dom->removeChild( $dom->doctype );
+		// Handle wraps.
+		$container = $dom->getElementsByTagName('div')->item(0);
+		$container = $container->parentNode->removeChild( $container );
 
-			// Remove <html><body></body></html>.
-			$dom->replaceChild( $dom->firstChild->firstChild->firstChild, $dom->firstChild ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		while ( $dom->firstChild ) {
+			$dom->removeChild( $dom->firstChild );
+		}
+
+		while ( $container->firstChild ) {
+			$dom->appendChild( $container->firstChild );
 		}
 
 		// Handle errors.
@@ -614,7 +620,7 @@ class Mai_Performance_Enhancer {
 		 * @link https://stackoverflow.com/questions/4645738/domdocument-appendxml-with-special-characters
 		 * @link https://www.py4u.net/discuss/974358
 		 */
-		$tmp  = $this->get_dom( $string, true );
+		$tmp  = $this->get_dom( $string );
 		$node = $tmp ? $dom->importNode( $tmp->documentElement, true ) : false;
 
 		if ( $node ) {
@@ -784,7 +790,7 @@ class Mai_Performance_Enhancer {
 				 * @link https://stackoverflow.com/questions/4645738/domdocument-appendxml-with-special-characters
 				 * @link https://www.py4u.net/discuss/974358
 				 */
-				$tmp  = $this->get_dom( $string, true );
+				$tmp  = $this->get_dom( $string );
 				$node = $tmp ? $dom->importNode( $tmp->documentElement, true ) : false;
 
 				if ( $node ) {
