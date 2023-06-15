@@ -338,6 +338,7 @@ class Mai_Performance_Enhancer {
 
 		// Body skips. These often generate HTML right where the script is.
 		if ( ! $head ) {
+			$skips[] = 'carambola'; // Carambola
 			$skips[] = 'convertkit'; // Converkit
 			$skips[] = '.ck.page'; // Converkit
 			$skips[] = 'surveymonkey';
