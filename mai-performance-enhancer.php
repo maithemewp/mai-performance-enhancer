@@ -118,7 +118,7 @@ final class Mai_Performance_Enhancer_Plugin {
 	 * @return  void
 	 */
 	public function hooks() {
-		add_action( 'plugins_loaded', [ $this, 'updater' ] );
+		add_action( 'plugins_loaded', [ $this, 'updater' ], 12 );
 	}
 
 	/**
