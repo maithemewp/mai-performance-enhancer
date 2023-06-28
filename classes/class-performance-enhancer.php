@@ -341,6 +341,7 @@ class Mai_Performance_Enhancer {
 			$skips[] = 'carambola'; // Carambola
 			$skips[] = 'convertkit'; // Converkit
 			$skips[] = '.ck.page'; // Converkit
+			$skips[] = 'googletag'; // Google ads.
 			$skips[] = 'surveymonkey';
 		}
 
