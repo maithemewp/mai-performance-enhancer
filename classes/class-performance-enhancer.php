@@ -334,6 +334,7 @@ class Mai_Performance_Enhancer {
 			'plugins/autoptimize',
 			'plugins/mai-engine',
 			'plugins/wp-rocket',
+			'googletag.cmd', // Google ads.
 		];
 
 		// Body skips. These often generate HTML right where the script is.
@@ -341,7 +342,6 @@ class Mai_Performance_Enhancer {
 			$skips[] = 'carambola'; // Carambola
 			$skips[] = 'convertkit'; // Converkit
 			$skips[] = '.ck.page'; // Converkit
-			$skips[] = 'googletag'; // Google ads.
 			$skips[] = 'surveymonkey';
 		}
 
