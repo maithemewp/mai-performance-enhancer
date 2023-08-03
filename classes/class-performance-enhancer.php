@@ -334,6 +334,7 @@ class Mai_Performance_Enhancer {
 			'plugins/autoptimize',
 			'plugins/mai-engine',
 			'plugins/wp-rocket',
+			'googlesyndication', // Google ads.
 			'googletag.cmd', // Google ads.
 		];
 
@@ -473,7 +474,7 @@ class Mai_Performance_Enhancer {
 			'google-analytics.com',
 			'googleadservices.com',
 			// 'googleoptimize.com',
-			'googlesyndication',
+			// 'googlesyndication',
 			// 'googletagmanager.com',
 			'gstatic.com',
 			'hotjar.com',
