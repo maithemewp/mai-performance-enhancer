@@ -482,7 +482,7 @@ class Mai_Performance_Enhancer {
 			'omappapi.com',
 			'pinterest.com',
 			'quantcast',
-			'securepubads',
+			// 'securepubads',
 			'slicewp',
 			'stats.wp',
 			'taboola.com',
