@@ -336,6 +336,7 @@ class Mai_Performance_Enhancer {
 			'plugins/wp-rocket',
 			'googlesyndication', // Google ads.
 			'googletag.cmd', // Google ads.
+			'securepubads', // Google ads.
 		];
 
 		// Body skips. These often generate HTML right where the script is.
