@@ -285,8 +285,9 @@ class Mai_Performance_Enhancer {
 		// Modify state.
 		$libxml_previous_state = libxml_use_internal_errors( true );
 
-		// Encode.
-		$html = mb_convert_encoding( $buffer, 'HTML-ENTITIES', 'UTF-8' );
+		// Encode. Can't use `mb_convert_encoding()` because it's deprecated in PHP 8.2.
+		// @link https://stackoverflow.com/questions/8218230/php-domdocument-loadhtml-not-encoding-utf-8-correctly
+		$html = mb_encode_numericentity( $html, [0x80, 0x10FFFF, 0, ~0], 'UTF-8' );
 
 		// If keeping wraps.
 		if ( $keep_wraps ) {
@@ -584,7 +585,6 @@ class Mai_Performance_Enhancer {
 	 */
 	function do_preloads( $dom ) {
 		$preloads = [];
-
 
 		foreach ( $this->preloads as $atts ) {
 			$attr   = [];
