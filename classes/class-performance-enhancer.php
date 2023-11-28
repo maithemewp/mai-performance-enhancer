@@ -287,7 +287,7 @@ class Mai_Performance_Enhancer {
 
 		// Encode. Can't use `mb_convert_encoding()` because it's deprecated in PHP 8.2.
 		// @link https://stackoverflow.com/questions/8218230/php-domdocument-loadhtml-not-encoding-utf-8-correctly
-		$html = mb_encode_numericentity( $html, [0x80, 0x10FFFF, 0, ~0], 'UTF-8' );
+		$html = mb_encode_numericentity( $buffer, [0x80, 0x10FFFF, 0, ~0], 'UTF-8' );
 
 		// If keeping wraps.
 		if ( $keep_wraps ) {
