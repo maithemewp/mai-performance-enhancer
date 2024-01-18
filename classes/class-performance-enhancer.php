@@ -285,19 +285,15 @@ class Mai_Performance_Enhancer {
 		// Modify state.
 		$libxml_previous_state = libxml_use_internal_errors( true );
 
-		// Encode. Can't use `mb_convert_encoding()` because it's deprecated in PHP 8.2.
-		// @link https://stackoverflow.com/questions/8218230/php-domdocument-loadhtml-not-encoding-utf-8-correctly
-		$html = mb_encode_numericentity( $buffer, [0x80, 0x10FFFF, 0, ~0], 'UTF-8' );
-
 		// If keeping wraps.
 		if ( $keep_wraps ) {
 			// Load the content in the document HTML.
-			$dom->loadHTML( $html );
+			$dom->loadHTML( $buffer );
 		}
 		// Remove wraps.
 		else {
 			// Load the content in the document HTML.
-			$dom->loadHTML( "<div>$html</div>" );
+			$dom->loadHTML( "<div>$buffer</div>" );
 
 			// Handle wraps.
 			$container = $dom->getElementsByTagName('div')->item(0);
