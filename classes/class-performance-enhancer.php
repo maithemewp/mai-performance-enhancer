@@ -247,7 +247,7 @@ class Mai_Performance_Enhancer {
 		$this->remove_nodes();
 
 		// Save HTML.
-		$buffer = $dom->saveHTML();
+		$buffer = $this->get_dom_html( $dom );
 
 		return $buffer;
 	}
@@ -285,6 +285,9 @@ class Mai_Performance_Enhancer {
 		// Modify state.
 		$libxml_previous_state = libxml_use_internal_errors( true );
 
+		// Encode.
+		$buffer = mb_encode_numericentity( $buffer, [0x80, 0x10FFFF, 0, ~0], 'UTF-8' );
+
 		// If keeping wraps.
 		if ( $keep_wraps ) {
 			// Load the content in the document HTML.
@@ -315,6 +318,22 @@ class Mai_Performance_Enhancer {
 		libxml_use_internal_errors( $libxml_previous_state );
 
 		return $dom;
+	}
+
+	/**
+	 * Saves HTML from DOMDocument and decode entities.
+	 *
+	 * @since TBD
+	 *
+	 * @param DOMDocument $dom
+	 *
+	 * @return string
+	 */
+	function get_dom_html( $dom ) {
+		$html = $dom->saveHTML();
+		$html = mb_convert_encoding( $html, 'UTF-8', 'HTML-ENTITIES' );
+
+		return $html;
 	}
 
 	/**
